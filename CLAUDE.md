@@ -50,6 +50,22 @@ into Swift or Kotlin. The engine renders on the writer thread (`AudioHost.swift`
 | Haptics | `Background.swift` `Haptics` | pad buzz |
 | Mess files | `ios/App/Mess/Mess.swift` (stopgap reader and writer, tested on the shared fixtures) | `engine/Project.java` |
 
+## When the shared engine lands
+
+The Android chat is converting the engine to Kotlin Multiplatform in `core/core/` (targets jvm, iosArm64,
+iosSimulatorArm64, js), keeping the Java engine's class, method and field names. It reads sounds through
+`fun interface SoundFiles { fun read(path: String): ByteArray? }` and times with one `expect fun nanoTime()`.
+
+- CI is ready: `tools/build-engine.sh` finds the module, runs `linkReleaseFrameworkIosSimulatorArm64` (and
+  `IosArm64` for TestFlight), copies the framework to `build/engine/` and rewrites `engine.yml` so the app links it.
+  Until the module exists it does nothing. The framework must be static (`isStatic = true`).
+- On drop day: move the core/ pin to the commit Tyler gives, then write `ios/App/Audio/SharedEngine.swift`
+  (`#if canImport(<framework>)`): a `BlockRenderer` that calls the engine's render into the writer's buffer, and a
+  `SoundFiles` whose `read` returns `BundleSounds.read(path)` as a `KotlinByteArray`. Swap it for `ToneEngine` in
+  `AppModel`. The bundled `sounds/` folder is a copy of `core/app/src/main/assets/sounds`.
+- First compile of the iOS `nanoTime()` actual happens here; if it breaks, tell Tyler and the Android chat.
+- Then load messes with the shared `Project` instead of `Mess.swift`, and keep `Mess.swift`'s tests as a check.
+
 ## Putting it on an iPhone (waiting on Tyler)
 
 Simulator only until Tyler decides. When he does, these are his steps; Claude never creates the account or keys:
@@ -72,7 +88,8 @@ iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS
 
 ## Known gaps (see PARITY-IOS.md)
 
-- No sound engine yet: waiting on the Kotlin Multiplatform engine in `hubbub0/Mess-Machine`.
+- No sound engine yet: waiting on the Kotlin Multiplatform engine in `hubbub0/Mess-Machine` (see "When the shared
+  engine lands").
 - The three Archivo font files share one PostScript name (`ArchivoSemiBold-Regular`), so iOS can register only one;
   the app bundles the ExtraBold. Fix sent as hubbub0/Mess-Machine pull request #24 (names only, glyphs identical).
   Once merged: move the pin, bundle all three, and use `Archivo-Medium`, `Archivo-ExtraBold`, `Archivo-Black`.

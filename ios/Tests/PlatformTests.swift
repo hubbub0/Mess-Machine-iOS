@@ -115,3 +115,21 @@ final class NoteRepliesTests: XCTestCase {
         XCTAssertNil(n.first?.replies)
     }
 }
+
+final class BundleSoundsTests: XCTestCase {
+    func testTheEngineCanReadEveryKindOfBuiltInFile() throws {
+        XCTAssertNotNil(BundleSounds.read("library.json"))
+        let kick = try XCTUnwrap(BundleSounds.read("basement-kick.flac"))
+        XCTAssertEqual(Array(kick.prefix(4)), Array("fLaC".utf8), "FLAC files arrive as they are")
+        XCTAssertEqual(BundleSounds.read("sounds/basement-kick.flac"), kick)
+        let lib = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(BundleSounds.read("library.json"))) as? [String: Any])
+        let loop = try XCTUnwrap((lib["sounds"] as? [[String: Any]])?.compactMap { $0["f"] as? String }.first { $0.hasPrefix("loops/") })
+        XCTAssertNotNil(BundleSounds.read(loop), "files in loops/ resolve")
+    }
+
+    func testItNeverReadsOutsideTheFolder() {
+        XCTAssertNil(BundleSounds.read("../Info.plist"))
+        XCTAssertNil(BundleSounds.read("loops/../../Info.plist"))
+        XCTAssertNil(BundleSounds.read("no-such-sound.flac"))
+    }
+}

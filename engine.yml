@@ -1,0 +1,4 @@
+# Written over by tools/build-engine.sh in CI when core/ has the shared Kotlin engine. This committed copy links
+# nothing, so the app builds with the stand-in ToneEngine.
+settings:
+  base: {}

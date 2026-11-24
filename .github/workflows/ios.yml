@@ -30,6 +30,24 @@ jobs:
           cc -std=c11 -O2 -Wall -Wextra -Werror -pthread -I ios/Audio ios/Audio/mm_ring.c ios/Audio/test/ring_test.c -o ring_test
           ./ring_test
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Kotlin/Native and Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.konan
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: kmp-${{ runner.os }}-${{ hashFiles('core/**/*.gradle.kts', 'core/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: kmp-${{ runner.os }}-
+
+      - name: Shared Kotlin engine (when core/ has it)
+        run: bash tools/build-engine.sh sim
+
       - name: Generate the Xcode project
         run: |
           brew list xcodegen >/dev/null 2>&1 || brew install xcodegen

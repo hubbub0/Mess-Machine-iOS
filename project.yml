@@ -1,5 +1,8 @@
 # XcodeGen spec: the Xcode project is generated from this file (`xcodegen generate`), never edited by hand.
 name: MessMachine
+# engine.yml links the shared Kotlin engine when CI has built it (tools/build-engine.sh); the committed copy links nothing
+include:
+  - engine.yml
 options:
   bundleIdPrefix: com.tideclock
   deploymentTarget:
@@ -34,7 +37,8 @@ targets:
         buildPhase: resources
       - path: core/app/src/main/res/font/share_tech_mono.ttf
         buildPhase: resources
-      - path: core/app/src/main/assets/sounds/library.json
+      - path: core/app/src/main/assets/sounds
+        type: folder
         buildPhase: resources
       - path: core/shared/fixtures/example.mess.json
         buildPhase: resources

@@ -34,6 +34,16 @@ jobs:
         with:
           submodules: true
 
+      - uses: actions/setup-java@v4
+        if: steps.keys.outputs.ready == 'yes'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Shared Kotlin engine (when core/ has it)
+        if: steps.keys.outputs.ready == 'yes'
+        run: bash tools/build-engine.sh all
+
       - name: Generate the Xcode project
         if: steps.keys.outputs.ready == 'yes'
         run: |
