@@ -1,0 +1,79 @@
+name: TestFlight (real iPhone)
+
+# Off until Tyler joins the Apple Developer Program and adds four secrets to this repo
+# (Settings, Secrets and variables, Actions): APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8
+# (the text of the App Store Connect API key's .p8 file). Then run it from the Actions tab.
+# It archives a signed build with automatic signing and uploads it to App Store Connect for TestFlight.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Stop unless the Apple keys are set
+        id: keys
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$TEAM" ] || [ -z "$KEY" ]; then
+            echo "No Apple keys in this repo yet, so nothing to upload. See CLAUDE.md, 'Putting it on an iPhone'."
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.keys.outputs.ready == 'yes'
+        with:
+          submodules: true
+
+      - name: Generate the Xcode project
+        if: steps.keys.outputs.ready == 'yes'
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+
+      - name: Archive, signed
+        if: steps.keys.outputs.ready == 'yes'
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p build
+          printf '%s' "$ASC_KEY_P8" > build/asc.p8
+          xcodebuild archive \
+            -project MessMachine.xcodeproj -scheme MessMachine \
+            -destination 'generic/platform=iOS' -archivePath build/MessMachine.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$PWD/build/asc.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} | tail -40
+
+      - name: Upload to TestFlight
+        if: steps.keys.outputs.ready == 'yes'
+        run: |
+          cat > build/export.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath build/MessMachine.xcarchive -exportOptionsPlist build/export.plist \
+            -exportPath build/export -allowProvisioningUpdates \
+            -authenticationKeyPath "$PWD/build/asc.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" | tail -40
+          rm -f build/asc.p8

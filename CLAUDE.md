@@ -50,6 +50,21 @@ into Swift or Kotlin. The engine renders on the writer thread (`AudioHost.swift`
 | Haptics | `Background.swift` `Haptics` | pad buzz |
 | Mess files | `ios/App/Mess/Mess.swift` (stopgap reader and writer, tested on the shared fixtures) | `engine/Project.java` |
 
+## Putting it on an iPhone (waiting on Tyler)
+
+Simulator only until Tyler decides. When he does, these are his steps; Claude never creates the account or keys:
+
+1. Join the Apple Developer Program ($99 a year) at developer.apple.com with his Apple ID.
+2. In App Store Connect, add an app with bundle ID `com.tideclock.messmachine` (same id as Android).
+3. App Store Connect, Users and Access, Integrations: make an API key with the App Manager role and download the .p8.
+4. In this repo's Settings, Secrets and variables, Actions, add `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID` and
+   `ASC_KEY_P8` (the .p8 file's text). He pastes them himself.
+5. Run "TestFlight (real iPhone)" from the Actions tab (`.github/workflows/testflight.yml`), then install TestFlight
+   on the iPhone and accept the build.
+
+The app icon (`ios/App/Assets.xcassets`) is made from the Android launcher art by `python3 tools/make_icon.py`;
+rerun it when the core/ pin moves past an icon change.
+
 ## Tyler's notes
 
 iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS-only bugs here and close them with
