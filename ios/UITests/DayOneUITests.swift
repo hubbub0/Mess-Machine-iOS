@@ -1,0 +1,65 @@
+import XCTest
+
+/// Drives the day-one screen on the Simulator and keeps a screenshot of each stop. Screenshots go to the folder in
+/// SCREENSHOT_DIR (CI sets TEST_RUNNER_SCREENSHOT_DIR) and into the test results.
+final class DayOneUITests: XCTestCase {
+    private var app: XCUIApplication!
+    private var shot = 0
+
+    override func setUp() {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launch()
+    }
+
+    private func snap(_ name: String) {
+        shot += 1
+        let s = XCUIScreen.main.screenshot()
+        let a = XCTAttachment(screenshot: s)
+        a.name = String(format: "%02d-%@", shot, name)
+        a.lifetime = .keepAlways
+        add(a)
+        if let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty {
+            let url = URL(fileURLWithPath: dir).appendingPathComponent(String(format: "%02d-%@.png", shot, name))
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            try? s.pngRepresentation.write(to: url)
+        }
+    }
+
+    func testDayOneScreen() {
+        XCTAssertTrue(app.buttons["pad-0"].waitForExistence(timeout: 10))
+        snap("start")
+
+        // sound: the pad starts Core Audio and the test tone
+        app.buttons["pad-0"].tap()
+        let path = app.staticTexts["audio-path"]
+        let opened = NSPredicate(format: "label CONTAINS 'Core Audio'")
+        expectation(for: opened, evaluatedWith: path)
+        waitForExpectations(timeout: 10)
+        for _ in 0..<4 { app.buttons["pad-0"].tap() }
+        sleep(2)
+        snap("sound-on")
+
+        // messes: the shared example opens
+        app.buttons["file-example"].tap()
+        let summary = app.staticTexts["mess-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertTrue(summary.label.contains("96 BPM"), "example summary: \(summary.label)")
+        XCTAssertTrue(summary.label.contains("4 pads"), "example summary: \(summary.label)")
+        app.swipeUp()
+        snap("example-mess")
+
+        // notes: the sheet opens and closes with the X
+        app.swipeDown()
+        app.buttons["bar-notes"].tap()
+        XCTAssertTrue(app.buttons["note-send"].waitForExistence(timeout: 5))
+        app.buttons["note-cat-feature"].tap()
+        snap("note-sheet")
+        app.buttons["sheet-close"].tap()
+
+        // stop
+        XCTAssertTrue(app.buttons["bar-play"].waitForExistence(timeout: 5))
+        app.buttons["bar-play"].tap()
+        snap("stopped")
+    }
+}

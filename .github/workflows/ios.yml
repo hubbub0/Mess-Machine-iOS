@@ -1,0 +1,92 @@
+name: iOS build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Quick checks (no em dashes in anything Tyler reads)
+        run: bash tools/precheck.sh
+
+      - name: Audio ring tests (plain C, real threads)
+        run: |
+          cc -std=c11 -O2 -Wall -Wextra -Werror -pthread -I ios/Audio ios/Audio/mm_ring.c ios/Audio/test/ring_test.c -o ring_test
+          ./ring_test
+
+      - name: Generate the Xcode project
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+          xcodebuild -version
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          best = None
+          for rt, devs in d.items():
+              if "iOS" not in rt: continue
+              ver = tuple(int(x) for x in rt.split("iOS-")[-1].split("-"))
+              for v in devs:
+                  if v["name"].startswith("iPhone") and "Pro" not in v["name"] and "Plus" not in v["name"] and "SE" not in v["name"]:
+                      key = (ver, v["name"])
+                      if best is None or key > best[0]: best = (key, v["udid"], v["name"], rt)
+          print(best[1]); print(best[2], best[3], file=sys.stderr)
+          ')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID" || true
+
+      - name: Build and test (unit tests, then the UI test with screenshots)
+        id: test
+        env:
+          TEST_RUNNER_SCREENSHOT_DIR: ${{ github.workspace }}/shots
+        run: |
+          set -o pipefail
+          mkdir -p build shots
+          xcodebuild test \
+            -project MessMachine.xcodeproj -scheme MessMachine \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath build/results.xcresult \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            2>&1 | tee build/xcodebuild.log | grep -E "error:|warning: .*\.swift|Test Case .*(passed|failed)|Executed|\*\* (BUILD|TEST)" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" build/xcodebuild.log
+
+      - name: Publish the test screenshots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/xcodebuild.log shots/ 2>/dev/null || true
+          (cd shots && zip -q -r ../test-screens.zip .) || true
+          if [ -f test-screens.zip ] && [ "${{ github.event_name }}" != "pull_request" ]; then
+            gh release delete test-screens --yes --cleanup-tag 2>/dev/null || true
+            gh release create test-screens test-screens.zip shots/*.png --prerelease --title "Test screenshots" \
+              --notes "Simulator screens from iOS build ${{ github.run_number }} (${GITHUB_SHA::7}). Test outcome: ${{ steps.test.outcome }}." || true
+          fi
+
+      - name: Keep the full results when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult
+          path: build/results.xcresult
+          retention-days: 5

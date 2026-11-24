@@ -1,0 +1,8 @@
+MessMachine.xcodeproj/
+build/
+shots/
+*.xcresult
+DerivedData/
+.DS_Store
+ring_test
+test-screens.zip
