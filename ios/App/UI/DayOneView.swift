@@ -66,6 +66,7 @@ struct DayOneView: View {
                 Key(label: audio.running ? "Stop" : "Play", lit: audio.running, tag: "bar-play") { app.togglePlay() }
             }
             Readout(label: "Path", value: audio.path, tag: "audio-path")
+            Readout(label: "Writer", value: audio.realtime ? "real-time thread" : "normal thread", tag: "audio-writer")
             Readout(label: "Rate", value: "\(audio.rate) Hz")
             Readout(label: "Ring", value: "\(audio.fill) frames")
             Readout(label: "Device", value: "\(audio.deviceFrames) frames a callback")

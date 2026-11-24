@@ -22,6 +22,8 @@ final class AudioHost: ObservableObject {
     @Published private(set) var route = "not started"
     @Published private(set) var path = "not started"
     @Published private(set) var status = ""
+    /// Whether the writer thread got a real-time schedule from the OS.
+    @Published private(set) var realtime = false
 
     let engine: BlockRenderer
     /// Bursts the ring may grow past where it started (Android's "Tight" setting).
@@ -139,6 +141,10 @@ final class AudioHost: ObservableObject {
             self.fill = fill
             self.path = String(cString: mm_mode())
         }
+        // a real-time schedule for this thread: Apple coalesces ordinary sleeps, which would run the ring dry
+        let periodNs = Int64(blk) * 1_000_000_000 / Int64(rate)
+        let rt = mm_thread_realtime(periodNs, periodNs / 2) == 0
+        DispatchQueue.main.async { self.realtime = rt }
         let buf = UnsafeMutablePointer<Float>.allocate(capacity: blk * 2)
         defer { buf.deallocate() }
         var seen = 0
@@ -174,7 +180,7 @@ final class AudioHost: ObservableObject {
 
     /// One line for notes, the same shape as Android's **Audio:** line.
     func notesLine() -> String {
-        "\(rate) Hz, ring \(fill) frames, device \(deviceFrames) frames per callback, clicks \(clicks), path \(path), out \(outputMs < 0 ? "not known" : String(format: "%.1f ms", outputMs)), route \(route)"
+        "\(rate) Hz, ring \(fill) frames, device \(deviceFrames) frames per callback, clicks \(clicks), path \(path), writer \(realtime ? "real-time" : "normal"), out \(outputMs < 0 ? "not known" : String(format: "%.1f ms", outputMs)), route \(route)"
     }
 
     // MARK: the session's news
