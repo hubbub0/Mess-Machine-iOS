@@ -16,6 +16,8 @@ struct MNote: Identifiable, Codable, Equatable {
     var screen: String
     var issue: Int = 0
     var status: String = ""
+    /// Claude's replies on the issue, "login: text". Optional so notes saved before replies existed still load.
+    var replies: [String]? = nil
 }
 
 enum NoteKinds {
@@ -28,6 +30,7 @@ final class NotesBook: ObservableObject {
     static let repo = "hubbub0/Mess-Machine"
     @Published private(set) var notes: [MNote] = []
     @Published private(set) var lastMessage = ""
+    @Published private(set) var checking = false
 
     private let file: URL
     private var trail: [String] = []
@@ -160,6 +163,80 @@ final class NotesBook: ObservableObject {
             }
             DispatchQueue.main.async { self.replace(out); self.lastMessage = msg; done(msg) }
         }.resume()
+    }
+
+    /// The status a note shows, from its issue's labels and state (the same words as Android).
+    static func status(labels: [String], closed: Bool) -> String {
+        if labels.contains("fixed") { return "fixed" }
+        if labels.contains("wishlist") { return "on the wishlist" }
+        if labels.contains("wontfix") { return "won't fix" }
+        if labels.contains("discuss") && !closed { return "waiting to discuss" }
+        return closed ? "closed" : "open"
+    }
+
+    /// The note ids an issue body carries (a bundle can carry several).
+    static func noteIds(inBody body: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: "mm-note:([A-Za-z0-9]+)") else { return [] }
+        return re.matches(in: body, range: NSRange(body.startIndex..., in: body)).compactMap {
+            Range($0.range(at: 1), in: body).map { String(body[$0]) }
+        }
+    }
+
+    /// Read Claude's replies from the issues. Public repo, so no key is needed to read.
+    func checkReplies(done: @escaping (String) -> Void = { _ in }) {
+        guard !checking else { return }
+        checking = true
+        let mine = Set(notes.map(\.id))
+        Task {
+            var msg: String
+            var updates: [MNote] = []
+            do {
+                let issues = try await Self.getJSON("https://api.github.com/repos/\(Self.repo)/issues?labels=from-app,ios&state=all&per_page=100") as? [[String: Any]] ?? []
+                var matched = 0, fresh = 0
+                for m in issues {
+                    let ids = Self.noteIds(inBody: m["body"] as? String ?? "").filter { mine.contains($0) }
+                    guard !ids.isEmpty else { continue }
+                    let labels = (m["labels"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+                    let st = Self.status(labels: labels, closed: (m["state"] as? String) == "closed")
+                    var replies: [String] = []
+                    if (m["comments"] as? Int ?? 0) > 0, let cu = m["comments_url"] as? String {
+                        let cs = try await Self.getJSON(cu) as? [[String: Any]] ?? []
+                        replies = cs.map { (($0["user"] as? [String: Any])?["login"] as? String ?? "") + ": " + ($0["body"] as? String ?? "") }
+                    }
+                    for id in ids {
+                        guard var n = await MainActor.run(body: { self.notes.first { $0.id == id } }) else { continue }
+                        matched += 1
+                        fresh += max(0, replies.count - (n.replies?.count ?? 0))
+                        n.issue = m["number"] as? Int ?? n.issue
+                        n.status = st
+                        n.replies = replies
+                        updates.append(n)
+                    }
+                }
+                msg = matched == 0 ? "None of your notes are on GitHub yet. Send one, then tap Submit on the page that opens."
+                    : fresh > 0 ? "\(fresh) new repl\(fresh == 1 ? "y" : "ies")." : "No new replies."
+            } catch {
+                msg = "Could not reach GitHub: \(error.localizedDescription)"
+            }
+            let final = msg, ups = updates
+            await MainActor.run {
+                for u in ups { self.replace(u) }
+                self.checking = false
+                self.lastMessage = final
+                done(final)
+            }
+        }
+    }
+
+    private static func getJSON(_ u: String) async throws -> Any {
+        var req = URLRequest(url: URL(string: u)!)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("MessMachine-iOS", forHTTPHeaderField: "User-Agent")
+        req.timeoutInterval = 15
+        let (d, r) = try await URLSession.shared.data(for: req)
+        let code = (r as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200...299).contains(code) else { throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "GitHub said \(code)"]) }
+        return try JSONSerialization.jsonObject(with: d)
     }
 
     static func device() -> String {

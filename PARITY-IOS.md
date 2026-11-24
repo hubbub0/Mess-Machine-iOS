@@ -14,10 +14,10 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 
 | Row | iOS |
 |---|---|
-| MIDI in | part: CoreMIDI over USB, every source, parser ported line for line (running status, program change and pressure skipped, bend); events reach the stand-in tone. Pad and key mapping waits on the shared screens. No Bluetooth pairing screen yet. |
+| MIDI in | part: CoreMIDI over USB and Bluetooth (Apple's pairing screen behind the Bluetooth key), every source, parser ported line for line (running status, program change and pressure skipped, bend); events reach the stand-in tone. Pad and key mapping waits on the shared screens. |
 | MIDI map | todo |
 | MIDI file out | todo (engine) |
-| Mic onto a pad, Workbench | part: mic opens with play-and-record, level meter, samples handed on. No recording to file yet. |
+| Mic onto a pad, Workbench | part: Record (tap start, tap keep) saves mic takes as 16-bit WAV with silent edges cut; Import brings in any audio file iOS reads, mixed to mono; both get `bn:<id>` keys, play through the stand-in engine, and a mess naming them loads. Chops, resampling (Bottle it), saved edits and key and tempo measuring wait on the shared engine. |
 
 ## Android-only pieces
 
@@ -28,15 +28,15 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | Background play with Stop | done: audio background mode, Now Playing entry with Stop and Pause |
 | Notifications permission, reopen notice | skip: not needed on iOS |
 | In-app update from GitHub releases | todo: TestFlight, needs Tyler's Apple Developer Program membership |
-| Bug notes as GitHub issues | part: same title, body, marker and labels plus `ios`; with a key posts directly, else opens the filled-in page. Reply checking and the note list screen come with the shared Notes screen. |
-| Quick note speech | todo: SFSpeechRecognizer |
-| Mic for mouth control and takes | part: see Mic onto a pad |
+| Bug notes as GitHub issues | part: same title, body, marker and labels plus `ios`; with a key posts directly, else opens the filled-in page; Replies reads Claude's comments and the issue status back (same status words as Android). Send all as one bundle and the full Notes screen come with the shared screens. |
+| Quick note speech | done: Say it in the note sheet (SFSpeechRecognizer, on the phone when it can), one tap to start, one to stop |
+| Mic for mouth control and takes | part: takes done (see Workbench); mouth control waits on the shared engine's MouthTracker, which plugs into MicIn.onSamples |
 | Pad buzz | done: UIImpactFeedbackGenerator on every pad hit (rigid for hard MIDI hits) |
 | Lock pins the screen | skip: Guided Access is the user's own setting; no API |
 | 60 Hz or Smooth screen | todo |
 | Back button closes the top panel | skip: no back key; panels close with their X |
 | Light status bar icons on light skins | todo (with skins) |
-| Share sheet, open a mess file, import sounds | part: opens .json messes from Files and "Open in", shares the re-saved mess. Sounds import waits on the engine. |
+| Share sheet, open a mess file, import sounds | part: opens .json messes from Files and "Open in", shares the re-saved mess, imports sounds to the Workbench. WAV, stems and MIDI sharing wait on the engine's bounce. |
 | Test tags, big test, phone test | part: accessibilityIdentifier uses Android's tags where a control exists (`pad-0`, `bar-play`, `bar-notes`); XCUITest drives the day-one screen with screenshots |
 
 ## Mess format

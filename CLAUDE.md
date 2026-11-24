@@ -28,6 +28,10 @@ The C ring is tested here too:
 
 ## The audio rule
 
+Apple coalesces ordinary timers, so the Android-style "sleep and poll" writer woke late on a Mac runner (107 short
+reads in about 370). Here the callback signals a semaphore when it frees room, and the writer thread asks for a
+real-time schedule (`mm_thread_realtime`). That cut it to 7 on the shared CI machine. Keep both.
+
 The render callback (`ios/Audio/mmaudio_ios.c`) only copies from the ring. It never allocates, locks, logs or calls
 into Swift or Kotlin. The engine renders on the writer thread (`AudioHost.swift`), exactly like Android's
 `AudioOut.kt` and `mmaudio.c`. `ToneEngine` stands in for the engine until the Kotlin module exists.
@@ -37,8 +41,10 @@ into Swift or Kotlin. The engine renders on the writer thread (`AudioHost.swift`
 | Piece | iOS | Android twin |
 |---|---|---|
 | Ring and output | `ios/Audio/mm_ring.c`, `mmaudio_ios.c`, `ios/App/Audio/AudioHost.swift` | `cpp/mmaudio.c`, `AudioOut.kt` |
-| Mic | `ios/App/Platform/MicIn.swift` | `MouthMic.kt`, `Workbench.kt` |
-| MIDI in | `ios/App/Platform/MidiIn.swift` (parser is a line-for-line port) | `Midi.kt` |
+| Mic | `ios/App/Platform/MicIn.swift` | `MouthMic.kt` |
+| Workbench (mic takes, imports) | `ios/App/Platform/Workbench.swift` | `Workbench.kt` |
+| Quick note speech | `ios/App/Platform/VoiceNote.swift` | `VoiceNote.kt` |
+| MIDI in | `ios/App/Platform/MidiIn.swift` (parser is a line-for-line port), `BluetoothMidi.swift` (pairing) | `Midi.kt` |
 | Background play with Stop | `ios/App/Platform/Background.swift` (audio background mode, lock screen Stop) | `PlaybackService.kt` |
 | Bug notes | `ios/App/Platform/Notes.swift` (same inbox, labels `from-app`, kind, `ios`) | `Notes.kt` |
 | Haptics | `Background.swift` `Haptics` | pad buzz |
@@ -56,4 +62,3 @@ iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS
   the app bundles the ExtraBold. A shared fix (renamed fonts) needs an `[iOS]` pull request.
 - Real-phone installs need Tyler's Apple Developer Program membership and signing in CI (TestFlight). Simulator only
   until then. Ask Tyler before touching his Apple account.
-- Bluetooth MIDI needs Apple's pairing screen (CABTMIDICentralViewController); USB class-compliant devices work now.

@@ -47,6 +47,9 @@ final class DayOneUITests: XCTestCase {
         XCTAssertTrue(summary.label.contains("96 BPM"), "example summary: \(summary.label)")
         XCTAssertTrue(summary.label.contains("4 pads"), "example summary: \(summary.label)")
         app.swipeUp()
+        XCTAssertTrue(app.buttons["mic"].exists, "the Workbench record key")
+        XCTAssertTrue(app.buttons["import"].exists, "the Workbench import key")
+        XCTAssertTrue(app.buttons["midi-bluetooth"].exists, "the Bluetooth MIDI key")
         snap("example-mess")
 
         // notes: the sheet opens and closes with the X
@@ -54,6 +57,8 @@ final class DayOneUITests: XCTestCase {
         app.buttons["bar-notes"].tap()
         XCTAssertTrue(app.buttons["note-send"].waitForExistence(timeout: 5))
         app.buttons["note-cat-feature"].tap()
+        XCTAssertTrue(app.buttons["note-voice"].exists)
+        XCTAssertTrue(app.buttons["note-check"].exists)
         snap("note-sheet")
         app.buttons["sheet-close"].tap()
 

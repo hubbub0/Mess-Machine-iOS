@@ -93,3 +93,25 @@ final class RingTests: XCTestCase {
         XCTAssertGreaterThan((0..<512).map { abs(buf[$0]) }.max() ?? 0, 0.05)
     }
 }
+
+final class NoteRepliesTests: XCTestCase {
+    func testStatusWordsMatchAndroid() {
+        XCTAssertEqual(NotesBook.status(labels: ["from-app", "bug", "fixed"], closed: true), "fixed")
+        XCTAssertEqual(NotesBook.status(labels: ["wishlist"], closed: true), "on the wishlist")
+        XCTAssertEqual(NotesBook.status(labels: ["discuss"], closed: false), "waiting to discuss")
+        XCTAssertEqual(NotesBook.status(labels: ["bug"], closed: true), "closed")
+        XCTAssertEqual(NotesBook.status(labels: ["bug"], closed: false), "open")
+    }
+
+    func testABundleCarriesEveryNoteId() {
+        XCTAssertEqual(NotesBook.noteIds(inBody: "a <!-- mm-note:abc123 --> b <!-- mm-note:Zx9 -->"), ["abc123", "Zx9"])
+        XCTAssertEqual(NotesBook.noteIds(inBody: "no marker"), [])
+    }
+
+    func testNotesSavedBeforeRepliesStillLoad() throws {
+        let old = #"[{"id":"a1","cat":"bug","topic":"","text":"x","at":0,"build":"ios 3","screen":"day one","issue":0,"status":""}]"#
+        let n = try JSONDecoder().decode([MNote].self, from: Data(old.utf8))
+        XCTAssertEqual(n.first?.id, "a1")
+        XCTAssertNil(n.first?.replies)
+    }
+}

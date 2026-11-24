@@ -12,6 +12,8 @@ struct MessMachineApp: App {
                 .environmentObject(app.mic)
                 .environmentObject(app.midi)
                 .environmentObject(app.notes)
+                .environmentObject(app.bench)
+                .environmentObject(app.voice)
                 .preferredColorScheme(.dark)
                 .onOpenURL { app.open($0) }
         }
@@ -27,6 +29,8 @@ final class AppModel: ObservableObject {
     let mic = MicIn()
     let midi = MidiIn()
     let notes = NotesBook()
+    let bench = Workbench()
+    let voice = VoiceNote()
     let background = Background()
 
     @Published var mess: Mess?
@@ -40,6 +44,8 @@ final class AppModel: ObservableObject {
         midi.onEvent = { [weak self] e in self?.midiEvent(e) }
         midi.start()
         Haptics.prepare()
+        let b = bench
+        mic.onSamples = { p, n, rate in b.feed(p, n, rate: rate) }
     }
 
     func togglePlay() {
@@ -87,6 +93,42 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Workbench
+
+    /// Tap to start a take, tap again to keep it (Android: tap start, tap stop). Turns the mic on when needed.
+    func toggleTake() {
+        if bench.recording {
+            if let b = bench.stopTake() { say = "Kept \(b.title) (\(String(format: "%.1f", b.seconds)) s)."; notes.trail("keep take") }
+            else { say = "Nothing heard, so nothing kept." }
+            return
+        }
+        if mic.running { bench.startTake(); say = "Recording. Tap again to keep it."; notes.trail("record take"); return }
+        MicIn.ask { ok in
+            guard ok else { self.say = "The mic is off for Mess Machine. Turn it on in Settings, Privacy, Microphone."; return }
+            let was = self.audio.running
+            self.audio.configureSession(mic: true)
+            guard self.mic.start() else { self.say = "The mic would not open: \(self.mic.status)."; return }
+            if was { self.audio.restart() }
+            self.bench.startTake()
+            self.say = "Recording. Tap again to keep it."
+            self.notes.trail("record take")
+        }
+    }
+
+    func play(_ b: BenchItem) {
+        if !audio.running { togglePlay() }
+        let rate = audio.rate
+        let bench = bench, tone = tone
+        DispatchQueue.global(qos: .userInitiated).async { tone.play(bench.samples(of: b, at: rate)) }
+        Haptics.pad()
+        notes.trail("play sound")
+    }
+
+    func importSound(_ url: URL) {
+        if let b = bench.importSound(url) { say = "Added \(b.title) to your Workbench."; notes.trail("import sound") }
+        else { say = "That file isn't a sound this phone can read." }
+    }
+
     // MARK: messes
 
     func openExample() {
@@ -97,8 +139,9 @@ final class AppModel: ObservableObject {
     func open(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let bench = bench
         guard let text = try? String(contentsOf: url, encoding: .utf8),
-              let loaded = try? Mess.load(text, known: SoundLibrary.bundled.has) else {
+              let loaded = try? Mess.load(text, known: { SoundLibrary.bundled.has($0) || bench.item(key: $0) != nil }) else {
             say = "That does not look like a Mess Machine file."
             return
         }

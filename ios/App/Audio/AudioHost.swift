@@ -224,12 +224,22 @@ final class AudioHost: ObservableObject {
     }
 }
 
-/// The stand-in engine: silence, plus a plucked tone each time a pad is hit. Locks only on the writer thread.
+/// The stand-in engine: silence, a plucked tone each time a pad is hit, and Workbench sounds played once.
+/// Locks only on the writer thread, never in the audio callback.
 final class ToneEngine: BlockRenderer {
     private struct Voice { var phase: Double; var freq: Double; var amp: Double }
+    private struct SampleVoice { var data: [Float]; var pos: Int }
     private var voices: [Voice] = []
+    private var sampleVoices: [SampleVoice] = []
     private var pending: [Double] = []
+    private var pendingSamples: [[Float]] = []
     private let lock = NSLock()
+
+    /// Play a mono sound once, already at the engine's rate. Safe from any thread.
+    func play(_ samples: [Float]) {
+        guard !samples.isEmpty else { return }
+        lock.lock(); pendingSamples.append(samples); lock.unlock()
+    }
 
     /// Hit: a short decaying tone at `freq` Hz. Safe from any thread.
     func hit(freq: Double = 220) {
@@ -240,10 +250,16 @@ final class ToneEngine: BlockRenderer {
         lock.lock()
         for f in pending where voices.count < 16 { voices.append(Voice(phase: 0, freq: f, amp: 0.35)) }
         pending.removeAll(keepingCapacity: true)
+        for s in pendingSamples where sampleVoices.count < 8 { sampleVoices.append(SampleVoice(data: s, pos: 0)) }
+        pendingSamples.removeAll(keepingCapacity: true)
         lock.unlock()
         let decay = pow(0.001, 1.0 / (0.8 * Double(rate)))  // down 60 dB in 0.8 s
         for i in 0..<frames {
             var s = 0.0
+            for k in sampleVoices.indices where sampleVoices[k].pos < sampleVoices[k].data.count {
+                s += Double(sampleVoices[k].data[sampleVoices[k].pos])
+                sampleVoices[k].pos += 1
+            }
             for k in voices.indices {
                 s += sin(voices[k].phase) * voices[k].amp
                 voices[k].phase += 2 * .pi * voices[k].freq / Double(rate)
@@ -255,5 +271,6 @@ final class ToneEngine: BlockRenderer {
             buf[i * 2 + 1] = v
         }
         voices.removeAll { $0.amp < 0.0005 }
+        sampleVoices.removeAll { $0.pos >= $0.data.count }
     }
 }

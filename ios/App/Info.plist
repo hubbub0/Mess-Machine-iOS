@@ -38,6 +38,10 @@
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mess Machine listens for mouth control and records takes onto pads. Mouth control keeps no audio: only two numbers leave the mic.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Say a note to Claude instead of typing it. On phones that can, the words are worked out on the phone itself.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Pair a Bluetooth MIDI controller to play Mess Machine with it.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>archivo_extrabold.ttf</string>
