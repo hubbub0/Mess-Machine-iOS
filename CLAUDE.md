@@ -74,6 +74,7 @@ iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS
 
 - No sound engine yet: waiting on the Kotlin Multiplatform engine in `hubbub0/Mess-Machine`.
 - The three Archivo font files share one PostScript name (`ArchivoSemiBold-Regular`), so iOS can register only one;
-  the app bundles the ExtraBold. A shared fix (renamed fonts) needs an `[iOS]` pull request.
+  the app bundles the ExtraBold. Fix sent as hubbub0/Mess-Machine pull request #24 (names only, glyphs identical).
+  Once merged: move the pin, bundle all three, and use `Archivo-Medium`, `Archivo-ExtraBold`, `Archivo-Black`.
 - Real-phone installs need Tyler's Apple Developer Program membership and signing in CI (TestFlight). Simulator only
   until then. Ask Tyler before touching his Apple account.
