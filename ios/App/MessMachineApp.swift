@@ -148,6 +148,7 @@ final class AppModel: ObservableObject {
         mess = loaded.mess
         missing = loaded.missing
         say = "Opened \(loaded.mess.name.isEmpty ? "a mess" : loaded.mess.name)."
+            + (loaded.mess.newer ? " It was made by a newer Mess Machine, so some parts may not show here." : "")
         // write it back out in this app's own words, ready to share
         let out = FileManager.default.temporaryDirectory.appendingPathComponent(loaded.mess.fileName)
         try? loaded.mess.text().write(to: out, atomically: true, encoding: .utf8)

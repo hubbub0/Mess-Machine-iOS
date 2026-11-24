@@ -6,6 +6,9 @@ import Foundation
 /// top-level key, the loops, the song and the older forms (sections 3 to 7 and 9). The nested objects (`edits`,
 /// `synths`, `padOpts`) and the motion, accent, chance and lock strings are carried through as they came, limited to
 /// sounds on a pad, so a mess opened and saved here loses nothing the format keeps.
+///
+/// Since Android build 172 (section 4.2 and 10): a pad whose sound this device lacks keeps its key and everything
+/// keyed by it, and unknown top-level and per-loop keys are written back unchanged.
 struct Mess {
     static let pads = 65            // 0...63 plus slot 64, the Synth tab's scratch synth
     static let slots = 8            // loops A to H
@@ -28,6 +31,8 @@ struct Mess {
         var acc: [String: String] = [:]
         var chance: [String: String] = [:]
         var locks: [String: String] = [:]
+        /// Keys this app does not know, from another platform or a newer version: written back as they came.
+        var extra: [String: Any] = [:]
 
         func step(_ key: String, _ i: Int) -> Bool { (steps[key] ?? []).indices.contains(i) && steps[key]![i] }
         var used: Bool { steps.values.contains { $0.contains(true) } || !notes.isEmpty || !offs.isEmpty }
@@ -53,8 +58,20 @@ struct Mess {
     var padOpts: [String: Any] = [:]
     var songMode = false
     var cur = 0
+    /// Unknown top-level keys, written back unchanged.
+    var extra: [String: Any] = [:]
+    /// Sound keys on a pad that this device cannot play (shown as Missing, kept in the mess).
+    var missingKeys: Set<String> = []
+    /// The file says it was made by a newer version (`v` above 3).
+    var newer = false
+
+    static let knownTop: Set<String> = ["name", "bpm", "v", "kit", "sel", "steps", "pats", "song", "swing", "squash", "level",
+                                        "mutes", "solos", "scale", "root", "fold", "edits", "synths", "padOpts", "at", "app",
+                                        "mode", "cur"]
+    static let knownLoop: Set<String> = ["len", "steps", "notes", "motion", "offs", "acc", "chance", "locks", "inst"]
 
     var loadedCount: Int { kit.prefix(64).filter { !$0.isEmpty }.count }
+    var missingCount: Int { kit.prefix(64).filter { missingKeys.contains($0) }.count }
     var loopsUsed: Int { pats.filter(\.used).count }
     private var onPad: Set<String> { Set(kit.filter { !$0.isEmpty }) }
 
@@ -76,19 +93,26 @@ struct Mess {
         m.bpm = Int(clamp(num(o["bpm"]) ?? 112, 60, 180))
         let synthsIn = (o["synths"] as? [String: Any]) ?? [:]
 
-        // the kit: known keys go on their pad, a repeated key keeps only its first pad, unknown keys count as missing
+        // the kit: a repeated key keeps only its first pad; a synth with no patch is nothing; any other key this device
+        // lacks stays on its pad as Missing (section 4.2, build 172)
         var missing = 0
         var placed = Set<String>()
         if let kit = o["kit"] as? [Any] {
             for (i, v) in kit.prefix(pads).enumerated() {
                 guard let k = v as? String, !k.isEmpty else { continue }
-                let ok = k.hasPrefix("synth:") ? synthsIn[k] != nil : known(k)
-                if !ok { missing += 1; continue }
                 if placed.contains(k) { continue }
+                if k.hasPrefix("synth:") {
+                    if synthsIn[k] == nil { missing += 1; continue }
+                } else if !known(k) {
+                    missing += 1
+                    m.missingKeys.insert(k)
+                }
                 placed.insert(k)
                 m.kit[i] = k
             }
         }
+        m.extra = o.filter { !knownTop.contains($0.key) }
+        if let v = num(o["v"]), v > 3 { m.newer = true }
         let first = (0..<64).first { !m.kit[$0].isEmpty } ?? 0
         if let s = num(o["sel"]), s >= 0, s < 64, !m.kit[Int(s)].isEmpty { m.sel = Int(s) } else { m.sel = first }
 
@@ -162,6 +186,7 @@ struct Mess {
         L.acc = strings(d["acc"]).filter { onPad.contains($0.key) }
         L.chance = strings(d["chance"]).filter { onPad.contains($0.key) }
         L.locks = strings(d["locks"]).filter { k, _ in onPad.contains(k.components(separatedBy: "@").dropLast().joined(separator: "@")) }
+        L.extra = d.filter { !knownLoop.contains($0.key) }
         return L
     }
 
@@ -183,7 +208,8 @@ struct Mess {
         let pads = onPad
         let loaded = kit.filter { !$0.isEmpty }
         func loopJSON(_ L: Loop) -> [String: Any] {
-            var d: [String: Any] = ["len": L.len]
+            var d: [String: Any] = L.extra
+            d["len"] = L.len
             var st: [String: String] = [:]
             for k in loaded {
                 let row = L.steps[k] ?? []
@@ -203,7 +229,7 @@ struct Mess {
             if !L.locks.isEmpty { d["locks"] = L.locks }
             return d
         }
-        var o: [String: Any] = [:]
+        var o: [String: Any] = extra
         let nm = name.isEmpty ? "Untitled mess" : name
         let units = Array(nm.utf16.prefix(48))
         o["name"] = String(utf16CodeUnits: units, count: units.count)

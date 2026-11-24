@@ -74,16 +74,39 @@ final class MessTests: XCTestCase {
         XCTAssertEqual(again.pats[0].notes[hit]?.count, 2, "re-saved as a notes map")
     }
 
-    func testSiteV3MissingSounds() throws {
+    func testSiteV3MissingSoundsKeepTheirPads() throws {
         let L = try load(try fixture("site-v3.mess.json"))
         let st = L.mess
         XCTAssertEqual(L.missing, 2, "the upload and the workbench sound are missing")
-        XCTAssertTrue(st.kit[1].isEmpty && st.kit[2].isEmpty); XCTAssertEqual(st.kit[3], "samples/wet-clap.wav")
-        XCTAssertEqual(st.pats[0].steps.count, 2, "steps of a missing sound are dropped")
-        XCTAssertFalse(st.text().contains("a:uploaded1\":"), "and gone from the next save")
-        XCTAssertEqual(st.sel, 0, "sel on an empty pad falls back to the first loaded pad")
+        XCTAssertEqual(st.kit[1], "a:uploaded1"); XCTAssertEqual(st.kit[2], "bn:lkj3x9512"); XCTAssertEqual(st.kit[3], "samples/wet-clap.wav")
+        XCTAssertEqual(st.missingKeys, ["a:uploaded1", "bn:lkj3x9512"])
+        XCTAssertTrue(st.pats[0].step("a:uploaded1", 2)); XCTAssertEqual(st.pats[0].notes["a:uploaded1"]?.count, 1)
+        XCTAssertTrue(st.text().contains("\"a:uploaded1\":\"0010001000100010\""), "and they are in the next save")
+        XCTAssertEqual(st.sel, 1, "sel stays on the missing pad")
         XCTAssertEqual(st.scale, "Dorian"); XCTAssertEqual(st.root, 2); XCTAssertTrue(st.fold)
         XCTAssertFalse(st.songMode); XCTAssertEqual(st.songLen, 1)
+    }
+
+    func testOtherPlatformKeysAndMissingSoundsSurviveASave() throws {
+        let text = try fixture("other-platform.mess.json")
+        let L = try load(text)
+        XCTAssertEqual(L.missing, 2)
+        let saved = L.mess.json()
+        let again = try load(L.mess.text()).mess
+        XCTAssertEqual(again.kit[1], "ios:take-7"); XCTAssertEqual(again.kit[3], "web:mic-3")
+        XCTAssertTrue(again.pats[0].step("ios:take-7", 2)); XCTAssertEqual(again.pats[0].notes["web:mic-3"]?.count, 1)
+        XCTAssertEqual(((again.edits["ios:take-7"] as? [String: Any])?["tune"] as? NSNumber)?.intValue, 3)
+        let orig = try JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
+        XCTAssertEqual(saved["cloud"] as? NSDictionary, orig["cloud"] as? NSDictionary, "unknown top-level key written back unchanged")
+        let lane = ((saved["pats"] as? [[String: Any]])?[0]["iosLane"]) as? NSDictionary
+        XCTAssertEqual(lane, ((orig["pats"] as! [[String: Any]])[0]["iosLane"]) as? NSDictionary, "unknown per-loop key written back unchanged")
+    }
+
+    func testANewerFileSaysSo() throws {
+        let m = try load(#"{"v":4,"bpm":100,"future":{"x":1}}"#).mess
+        XCTAssertTrue(m.newer)
+        XCTAssertEqual(m.json()["v"] as? Int, 3, "saved back as v 3")
+        XCTAssertNotNil(m.json()["future"], "with its unknown keys carried")
     }
 
     func testTolerance() throws {

@@ -156,7 +156,7 @@ struct DayOneView: View {
             if let m = app.mess {
                 Readout(label: "Mess", value: m.summary, tag: "mess-summary")
                 if app.missing > 0 {
-                    Text("\(app.missing) pads used sounds that only live on the site, so they are empty here.")
+                    Text("\(app.missing) pads use sounds this phone does not have. They show as Missing and stay in the mess.")
                         .font(F.mono(11)).foregroundStyle(C.riot)
                 }
             }

@@ -48,4 +48,5 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | motion, acc, chance, locks, edits, synths, padOpts | part: carried through unchanged for sounds on a pad; not interpreted until the shared engine reads them |
 | v1 top-level steps, v2 `inst` notes, site files, qb: aliases | done |
 | Pre-106 LFO filter move in padOpts | todo: lands with the shared engine's PadOpts |
+| Missing sounds keep their pads, unknown top-level and per-loop keys carried, `v` above 3 flagged (build 172) | done (the pad's Missing label waits on the shared screens) |
 | Writes `app: "ios"` | done |
