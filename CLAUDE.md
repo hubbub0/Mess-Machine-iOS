@@ -50,21 +50,22 @@ into Swift or Kotlin. The engine renders on the writer thread (`AudioHost.swift`
 | Haptics | `Background.swift` `Haptics` | pad buzz |
 | Mess files | `ios/App/Mess/Mess.swift` (stopgap reader and writer, tested on the shared fixtures) | `engine/Project.java` |
 
-## When the shared engine lands
+## The shared engine
 
-The Android chat is converting the engine to Kotlin Multiplatform in `core/core/` (targets jvm, iosArm64,
-iosSimulatorArm64, js), keeping the Java engine's class, method and field names. It reads sounds through
-`fun interface SoundFiles { fun read(path: String): ByteArray? }` and times with one `expect fun nanoTime()`.
+The engine is common Kotlin in `core/core/` (Kotlin Multiplatform, same names as the old Java engine), built for iOS
+as the static framework `MessEngine` (docs: `core/docs/KOTLIN-ENGINE.md`, `core/docs/handoff/IOS.md`).
 
-- CI is ready: `tools/build-engine.sh` finds the module, runs `linkReleaseFrameworkIosSimulatorArm64` (and
-  `IosArm64` for TestFlight), copies the framework to `build/engine/` and rewrites `engine.yml` so the app links it.
-  Until the module exists it does nothing. The framework must be static (`isStatic = true`).
-- On drop day: move the core/ pin to the commit Tyler gives, then write `ios/App/Audio/SharedEngine.swift`
-  (`#if canImport(<framework>)`): a `BlockRenderer` that calls the engine's render into the writer's buffer, and a
-  `SoundFiles` whose `read` returns `BundleSounds.read(path)` as a `KotlinByteArray`. Swap it for `ToneEngine` in
-  `AppModel`. The bundled `sounds/` folder is a copy of `core/app/src/main/assets/sounds`.
-- First compile of the iOS `nanoTime()` actual happens here; if it breaks, tell Tyler and the Android chat.
-- Then load messes with the shared `Project` instead of `Mess.swift`, and keep `Mess.swift`'s tests as a check.
+- `tools/build-engine.sh` (Mac only, run by CI) builds it with `-Pmm.coreOnly` (no Android tools), copies it to
+  `build/engine/`, rewrites `engine.yml` so the app and unit tests link it, and keeps `build/engine/MessEngine.h`.
+  CI prints the Swift names of the calls the app uses and puts the whole header on the `test-screens` release: read
+  it before calling anything new.
+- `ios/App/Audio/SharedEngine.swift` (`#if canImport(MessEngine)`): renders with `Engine.renderInto` (iosMain) on the
+  writer thread, reads sounds through `BundleSoundFiles` (the bundled `sounds/` folder, a copy of
+  `core/app/src/main/assets/sounds`), opens messes with `Project.fromJson(text, lib::has)` like Android, and drives
+  pads, play and stop through the engine's command queue. Built without it, the app falls back to `ToneEngine`.
+- The engine renders at the session's rate when the app starts (`AudioHost.prepareSession`). A later rate change
+  (some Bluetooth outputs) is not handled yet.
+- Next: the shared screens. Until then `Mess.swift` stays as a second check of the format.
 
 ## Putting it on an iPhone (waiting on Tyler)
 

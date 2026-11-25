@@ -70,8 +70,26 @@ struct DayOneView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("pad-0")
             HStack {
-                Key(label: audio.running ? "Stop" : "Play", lit: audio.running, tag: "bar-play") { app.togglePlay() }
+                let on = app.mess != nil && app.pads.count > 0 ? app.loopPlaying : audio.running
+                Key(label: on ? "Stop" : (app.mess != nil && !app.pads.isEmpty ? "Play loop" : "Play"), lit: on, tag: "bar-play") { app.togglePlay() }
             }
+            if !app.pads.isEmpty {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                    ForEach(app.pads) { p in
+                        Button { app.hit(pad: p.pad) } label: {
+                            Text(Self.padName(p.key)).font(F.text(11)).foregroundStyle(C.cream).lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, minHeight: 56)
+                                .background(C.card2)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(C.teal.opacity(0.7), lineWidth: 2))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("mess-pad-\(p.pad)")
+                    }
+                }
+            }
+            Readout(label: "Engine", value: app.engineName, tag: "audio-engine")
             Readout(label: "Path", value: audio.path, tag: "audio-path")
             Readout(label: "Writer", value: audio.realtime ? "real-time thread" : "normal thread", tag: "audio-writer")
             Readout(label: "Rate", value: "\(audio.rate) Hz")
@@ -82,6 +100,14 @@ struct DayOneView: View {
             Readout(label: "Route", value: audio.route)
             if !audio.status.isEmpty { Text(audio.status).font(F.mono(11)).foregroundStyle(C.dim) }
         }
+    }
+
+    /// "samples/basement-kick.wav" -> "basement kick"; "synth:1" -> "synth 1".
+    static func padName(_ key: String) -> String {
+        var k = key
+        if let slash = k.lastIndex(of: "/") { k = String(k[k.index(after: slash)...]) }
+        if let dot = k.lastIndex(of: "."), k.distance(from: dot, to: k.endIndex) <= 5 { k = String(k[..<dot]) }
+        return k.replacingOccurrences(of: ":", with: " ").replacingOccurrences(of: "-", with: " ")
     }
 
     private var micPanel: some View {

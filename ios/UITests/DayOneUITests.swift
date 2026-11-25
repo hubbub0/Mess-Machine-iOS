@@ -46,6 +46,16 @@ final class DayOneUITests: XCTestCase {
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         XCTAssertTrue(summary.label.contains("96 BPM"), "example summary: \(summary.label)")
         XCTAssertTrue(summary.label.contains("4 pads"), "example summary: \(summary.label)")
+        // the shared Kotlin engine: the mess's pads appear and play, and the loop plays
+        XCTAssertTrue(app.staticTexts["audio-engine"].label.contains("shared"), "built with the shared engine: \(app.staticTexts["audio-engine"].label)")
+        app.swipeDown()
+        let pad = app.buttons["mess-pad-0"]
+        XCTAssertTrue(pad.waitForExistence(timeout: 20), "the example's pads load")
+        pad.tap()
+        app.buttons["bar-play"].tap()
+        sleep(3)
+        snap("shared-engine-playing")
+        app.buttons["bar-play"].tap()
         app.swipeUp()
         XCTAssertTrue(app.buttons["mic"].exists, "the Workbench record key")
         XCTAssertTrue(app.buttons["import"].exists, "the Workbench import key")

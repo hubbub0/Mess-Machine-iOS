@@ -24,8 +24,13 @@ struct MessMachineApp: App {
 final class AppModel: ObservableObject {
     static var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?" }
 
-    let tone = ToneEngine()
+    let tone: ToneEngine
     let audio: AudioHost
+    /// What makes the sound: the shared Kotlin engine when this build has it, else the stand-in tone.
+    let engineName: String
+    #if canImport(MessEngine)
+    let shared: SharedEngine?
+    #endif
     let mic = MicIn()
     let midi = MidiIn()
     let notes = NotesBook()
@@ -38,9 +43,24 @@ final class AppModel: ObservableObject {
     @Published var shareURL: URL?
     @Published var say = ""
     @Published var flash = false
+    /// The open mess's first pads (shared engine only), for the pad row.
+    @Published var pads: [PadRef] = []
+    @Published var loopPlaying = false
 
     init() {
+        let rate = AudioHost.prepareSession()
+        #if canImport(MessEngine)
+        let se = try? SharedEngine(rate: rate)
+        shared = se
+        tone = se?.extra ?? ToneEngine()
+        audio = AudioHost(engine: se ?? tone as BlockRenderer)
+        engineName = se != nil ? "shared Kotlin engine" : "stand-in tone (the engine would not start)"
+        #else
+        tone = ToneEngine()
         audio = AudioHost(engine: tone)
+        engineName = "stand-in tone"
+        #endif
+        _ = rate
         midi.onEvent = { [weak self] e in self?.midiEvent(e) }
         midi.start()
         Haptics.prepare()
@@ -49,19 +69,53 @@ final class AppModel: ObservableObject {
     }
 
     func togglePlay() {
+        #if canImport(MessEngine)
+        if let se = shared, mess != nil {
+            if loopPlaying { se.stop(); loopPlaying = false; notes.trail("stop"); return }
+            if !audio.running { startAudio() }
+            se.play(); loopPlaying = true; notes.trail("play")
+            return
+        }
+        #endif
         if audio.running {
-            audio.stop(); background.stopped(); notes.trail("stop")
+            audio.stop(); background.stopped(); loopPlaying = false; notes.trail("stop")
         } else {
-            audio.start()
-            background.playing(line: "test tone") { [weak self] in
-                DispatchQueue.main.async { self?.audio.stop(); self?.background.stopped() }
-            }
+            startAudio()
             notes.trail("play")
         }
     }
 
+    private func startAudio() {
+        audio.start()
+        do {
+            background.playing(line: mess?.name ?? "Mess Machine") { [weak self] in
+                DispatchQueue.main.async {
+                    #if canImport(MessEngine)
+                    self?.shared?.stop()
+                    #endif
+                    self?.loopPlaying = false
+                    self?.audio.stop(); self?.background.stopped()
+                }
+            }
+        }
+    }
+
+    /// A pad of the open mess, through the shared engine.
+    func hit(pad: Int) {
+        #if canImport(MessEngine)
+        guard let se = shared else { return }
+        if !audio.running { startAudio() }
+        se.hit(pad: pad)
+        Haptics.pad()
+        notes.trail("pad \(pad + 1)")
+        #endif
+    }
+
     func hitPad(freq: Double = 220, strong: Bool = false) {
-        if !audio.running { togglePlay() }
+        #if canImport(MessEngine)
+        if shared != nil, let first = pads.first { hit(pad: first.pad); return }
+        #endif
+        if !audio.running { startAudio() }
         tone.hit(freq: freq)
         Haptics.pad(strong: strong)
         flash = true
@@ -70,6 +124,10 @@ final class AppModel: ObservableObject {
     }
 
     private func midiEvent(_ e: MidiEvent) {
+        #if canImport(MessEngine)
+        // notes 36 to 51 hit pads 1 to 16, as on Android
+        if shared != nil, case let .down(n, _) = e, (36...51).contains(n) { hit(pad: n - 36); return }
+        #endif
         if case let .down(n, v) = e {
             // middle C plays the sound's own pitch, as on Android; the test tone sits at A3 (220 Hz)
             hitPad(freq: 220 * pow(2, Double(n - 57) / 12), strong: v > 100)
@@ -116,7 +174,7 @@ final class AppModel: ObservableObject {
     }
 
     func play(_ b: BenchItem) {
-        if !audio.running { togglePlay() }
+        if !audio.running { startAudio() }
         let rate = audio.rate
         let bench = bench, tone = tone
         DispatchQueue.global(qos: .userInitiated).async { tone.play(bench.samples(of: b, at: rate)) }
@@ -147,6 +205,18 @@ final class AppModel: ObservableObject {
         }
         mess = loaded.mess
         missing = loaded.missing
+        #if canImport(MessEngine)
+        if let se = shared {
+            if loopPlaying { se.stop(); loopPlaying = false }
+            pads = []
+            let t = text
+            DispatchQueue.global(qos: .userInitiated).async {
+                se.open(t)
+                let p = se.loadedPads()
+                DispatchQueue.main.async { self.pads = p }
+            }
+        }
+        #endif
         say = "Opened \(loaded.mess.name.isEmpty ? "a mess" : loaded.mess.name)."
             + (loaded.mess.newer ? " It was made by a newer Mess Machine, so some parts may not show here." : "")
         // write it back out in this app's own words, ready to share

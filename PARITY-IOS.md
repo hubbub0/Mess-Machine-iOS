@@ -5,8 +5,9 @@ chat to merge them. `done`, `part: <what is missing>`, `todo`, or `skip: <why>`.
 
 ## Feature sections
 
-Every row in these sections of PARITY.md is **todo**. They are the shared screens and engine, which come from the
-Kotlin Multiplatform move in `hubbub0/Mess-Machine`, not from code written here:
+The engine itself is now shared (core/core, built as MessEngine): opening a mess, playing its loop and hitting its
+pads make the same sound as Android. Every row in these sections of PARITY.md is still **todo** on screen: they wait
+for the shared screens, not for code written here:
 
 Layouts and looks, Top bar, Tabs, Play page, Bottom dock and More, Settings tray and Edit tray, FannyPack strips,
 Perform row and side dock, Hold chords and scales and note repeat, Mute and drop, Loop strip, Synth page,

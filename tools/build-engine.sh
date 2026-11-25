@@ -10,6 +10,10 @@
 # embed it, it links it.
 set -euo pipefail
 which_targets="${1:-sim}"
+if [ "$(uname)" != Darwin ]; then
+  echo "The iOS engine builds only on a Mac (Kotlin/Native for iOS). Leaving engine.yml as it is."
+  exit 0
+fi
 mod_file=$(grep -l "iosSimulatorArm64" core/*/build.gradle.kts core/*/*/build.gradle.kts 2>/dev/null | head -1 || true)
 if [ -z "$mod_file" ]; then
   echo "No shared engine in core/ yet (no Gradle module with iosSimulatorArm64). Building with the stand-in engine."
@@ -22,7 +26,7 @@ echo "Shared engine module: $mod_dir (Gradle $gpath)"
 
 tasks=("$gpath:linkReleaseFrameworkIosSimulatorArm64")
 [ "$which_targets" = all ] && tasks+=("$gpath:linkReleaseFrameworkIosArm64")
-(cd core && ./gradlew --no-daemon --configure-on-demand --stacktrace "${tasks[@]}")
+(cd core && ./gradlew --no-daemon -Pmm.coreOnly --stacktrace "${tasks[@]}")
 
 copy() { # <kotlin target> <xcode platform>
   local src
@@ -49,5 +53,12 @@ targets:
       base:
         FRAMEWORK_SEARCH_PATHS: ["\$(inherited)", "\$(PROJECT_DIR)/build/engine/\$(PLATFORM_NAME)"]
         OTHER_LDFLAGS: ["\$(inherited)", "-framework", "$name", "-lc++"]
+  MessMachineTests:
+    settings:
+      base:
+        FRAMEWORK_SEARCH_PATHS: ["\$(inherited)", "\$(PROJECT_DIR)/build/engine/\$(PLATFORM_NAME)"]
 YML
+# the Swift view of the framework, for whoever wires a new engine call (printed in the CI log, kept in build/)
+hdr="build/engine/iphonesimulator/$name.framework/Headers/$name.h"
+[ -f "$hdr" ] && cp "$hdr" "build/engine/$name.h"
 echo "Linked the shared engine: $name"

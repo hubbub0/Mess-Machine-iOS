@@ -48,6 +48,15 @@ final class AudioHost: ObservableObject {
 
     // MARK: session
 
+    /// Set the session up once before anything is built, and return the rate the engine must render at.
+    static func prepareSession() -> Int {
+        let s = AVAudioSession.sharedInstance()
+        try? s.setCategory(.playback, mode: .default, options: [])
+        try? s.setPreferredSampleRate(48000)
+        try? s.setActive(true)
+        return max(8000, Int(s.sampleRate.rounded()))
+    }
+
     /// Playback only, not mixed with other apps, short IO buffer, the hardware's own rate.
     /// With `mic`, play and record (the mic and mouth control need it), still out of the speaker.
     func configureSession(mic: Bool = false) {

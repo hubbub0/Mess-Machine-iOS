@@ -16,7 +16,7 @@ concurrency:
 jobs:
   simulator:
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,7 +46,13 @@ jobs:
           restore-keys: kmp-${{ runner.os }}-
 
       - name: Shared Kotlin engine (when core/ has it)
-        run: bash tools/build-engine.sh sim
+        run: |
+          bash tools/build-engine.sh sim
+          # how Swift sees the calls the app uses (for fixing names), and the whole header next to the screenshots
+          if [ -f build/engine/MessEngine.h ]; then
+            mkdir -p shots && cp build/engine/MessEngine.h shots/
+            grep -nE "swift_name\(\"(Engine|Library|Project|SoundFiles|KotlinByteArray|KotlinIntArray)|renderInto|fromJson|build\(p|- \(void\)(play|stop|down|up|setSnapshot)|loadKey|hasKey|loadedKey" build/engine/MessEngine.h | head -80 || true
+          fi
 
       - name: Generate the Xcode project
         run: |
