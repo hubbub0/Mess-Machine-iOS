@@ -102,8 +102,10 @@ jobs:
           cp build/xcodebuild.log shots/ 2>/dev/null || true
           (cd shots && zip -q -r ../test-screens.zip .) || true
           if [ -f test-screens.zip ] && [ "${{ github.event_name }}" != "pull_request" ]; then
+            files=(test-screens.zip)
+            for f in shots/*.png shots/MessEngine.h; do [ -f "$f" ] && files+=("$f"); done
             gh release delete test-screens --yes --cleanup-tag 2>/dev/null || true
-            gh release create test-screens test-screens.zip shots/*.png --prerelease --title "Test screenshots" \
+            gh release create test-screens "${files[@]}" --prerelease --title "Test screenshots" \
               --notes "Simulator screens from iOS build ${{ github.run_number }} (${GITHUB_SHA::7}). Test outcome: ${{ steps.test.outcome }}." || true
           fi
 

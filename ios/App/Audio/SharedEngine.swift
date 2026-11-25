@@ -25,7 +25,7 @@ final class SharedEngine: BlockRenderer {
 
     init(rate: Int) throws {
         self.rate = rate
-        lib = try Library(files: BundleSoundFiles(), base: "sounds/")
+        lib = try Library(files: MMBundleSoundFiles(), base: "sounds/")
         engine = Engine(rate: Int32(rate))
     }
 
@@ -52,7 +52,7 @@ final class SharedEngine: BlockRenderer {
             if let k = kit.get(index: Int32(i)) as? String, !k.isEmpty { _ = try? lib.load(key: k) }
         }
         project = p
-        engine.setSnapshot(s: Engine.Snapshot.Companion.shared.build(p: p, src: lib, live: nil))
+        engine.setSnapshot(s: Engine.SnapshotCompanion.shared.build(p: p, src: lib, live: nil))
         return (Int(loaded.missing), loaded.newer)
     }
 
@@ -87,24 +87,8 @@ final class SharedEngine: BlockRenderer {
     }
 }
 
-/// The engine's SoundFiles over the app bundle's sounds/ folder (and full paths inside the app's own container).
-final class BundleSoundFiles: SoundFiles {
-    func read(path: String) throws -> KotlinByteArray? {
-        guard let d = BundleSounds.read(path) else { return nil }
-        return d.kotlinBytes()
-    }
-}
-
-extension Data {
-    /// Copy into a Kotlin ByteArray. One call per byte across the bridge: fine for sound files read once each.
-    func kotlinBytes() -> KotlinByteArray {
-        let a = KotlinByteArray(size: Int32(count))
-        withUnsafeBytes { (p: UnsafeRawBufferPointer) in
-            for i in 0..<count { a.set(index: Int32(i), value: Int8(bitPattern: p[i])) }
-        }
-        return a
-    }
-}
+// The engine's SoundFiles is MMBundleSoundFiles (Objective-C, MMBundleSoundFiles.m): Kotlin's read(path) may both
+// throw and return nothing, which a Swift class cannot implement for an Objective-C protocol.
 #else
 /// Built without the shared engine (core/ had none when this was built): ToneEngine stands in.
 enum SharedEngineMissing {}

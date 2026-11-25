@@ -46,11 +46,12 @@ final class SharedEngineTests: XCTestCase {
     }
 
     func testSoundFilesReadsTheBundleThroughKotlin() throws {
-        let f = BundleSoundFiles()
+        let f = MMBundleSoundFiles()
         let kick = try XCTUnwrap(try f.read(path: "sounds/basement-kick.flac"))
         XCTAssertGreaterThan(kick.size, 1000)
         XCTAssertEqual(kick.get(index: 0), Int8(bitPattern: UInt8(ascii: "f")))
-        XCTAssertNil(try f.read(path: "sounds/no-such.flac"))
+        XCTAssertEqual(MMBundleSoundFiles.data(forPath: "loops/../../Info.plist"), nil)
+        XCTAssertEqual(MMBundleSoundFiles.data(forPath: "sounds/basement-kick.flac")?.count, Int(kick.size))
     }
 }
 #endif
