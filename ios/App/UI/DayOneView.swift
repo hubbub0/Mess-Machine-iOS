@@ -47,7 +47,7 @@ struct DayOneView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("MESS MACHINE").font(F.heading(28)).foregroundStyle(C.teal)
                     .shadow(color: C.pink, radius: 0, x: 2, y: 2)
-                Text("iPhone build \(AppModel.build) · day one: the iPhone pieces, before the shared engine")
+                Text("iPhone build \(AppModel.build) · test screen: the shared engine and the iPhone pieces, before the shared screens")
                     .font(F.mono(11)).foregroundStyle(C.dim)
             }
             Spacer()
