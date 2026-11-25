@@ -72,7 +72,8 @@ as the static framework `MessEngine` (docs: `core/docs/KOTLIN-ENGINE.md`, `core/
 Simulator only until Tyler decides. When he does, these are his steps; Claude never creates the account or keys:
 
 1. Join the Apple Developer Program ($99 a year) at developer.apple.com with his Apple ID.
-2. In App Store Connect, add an app with bundle ID `com.tideclock.messmachine` (same id as Android).
+2. In App Store Connect, add an app with bundle ID `app.shotgunstudio.messmachine` (same id as Android since Nov 24;
+   Android moved off `com.tideclock.messmachine`).
 3. App Store Connect, Users and Access, Integrations: make an API key with the App Manager role and download the .p8.
 4. In this repo's Settings, Secrets and variables, Actions, add `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID` and
    `ASC_KEY_P8` (the .p8 file's text). He pastes them himself.
