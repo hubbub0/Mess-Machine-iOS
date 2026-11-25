@@ -60,7 +60,7 @@ as the static framework `MessEngine` (docs: `core/docs/KOTLIN-ENGINE.md`, `core/
   CI prints the Swift names of the calls the app uses and puts the whole header on the `test-screens` release: read
   it before calling anything new.
 - `ios/App/Audio/SharedEngine.swift` (`#if canImport(MessEngine)`): renders with `Engine.renderInto` (iosMain) on the
-  writer thread, reads sounds through `BundleSoundFiles` (the bundled `sounds/` folder, a copy of
+  writer thread, reads sounds through `MMBundleSoundFiles` (Objective-C, because Kotlin's `read` may throw or return nothing) (the bundled `sounds/` folder, a copy of
   `core/app/src/main/assets/sounds`), opens messes with `Project.fromJson(text, lib::has)` like Android, and drives
   pads, play and stop through the engine's command queue. Built without it, the app falls back to `ToneEngine`.
 - The engine renders at the session's rate when the app starts (`AudioHost.prepareSession`). A later rate change
@@ -89,8 +89,9 @@ iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS
 
 ## Known gaps (see PARITY-IOS.md)
 
-- No sound engine yet: waiting on the Kotlin Multiplatform engine in `hubbub0/Mess-Machine` (see "When the shared
-  engine lands").
+- No real screens yet: the shared engine plays, but the screens and AppState are still Android-only Compose in
+  `core/app/`. They arrive when the Android chat moves them to Compose Multiplatform; then host them with
+  `ComposeUIViewController` and plug in the iPhone pieces above.
 - The three Archivo font files share one PostScript name (`ArchivoSemiBold-Regular`), so iOS can register only one;
   the app bundles the ExtraBold. Fix sent as hubbub0/Mess-Machine pull request #24 (names only, glyphs identical).
   Once merged: move the pin, bundle all three, and use `Archivo-Medium`, `Archivo-ExtraBold`, `Archivo-Black`.
