@@ -22,7 +22,9 @@ enum C {
 
 enum F {
     static func heading(_ s: CGFloat = 20) -> Font { .custom("Bungee-Regular", size: s) }
-    static func text(_ s: CGFloat = 14) -> Font { .custom("ArchivoSemiBold-Regular", size: s) }
+    static func text(_ s: CGFloat = 14) -> Font { .custom("Archivo-ExtraBold", size: s) }
+    static func textMedium(_ s: CGFloat = 14) -> Font { .custom("Archivo-Medium", size: s) }
+    static func textBlack(_ s: CGFloat = 14) -> Font { .custom("Archivo-Black", size: s) }
     static func mono(_ s: CGFloat = 12, bold: Bool = false) -> Font { .custom(bold ? "IBMPlexMono-Bold" : "IBMPlexMono-Regular", size: s) }
     static func lcd(_ s: CGFloat = 14) -> Font { .custom("ShareTechMono-Regular", size: s) }
 }

@@ -44,7 +44,9 @@
 	<string>Pair a Bluetooth MIDI controller to play Mess Machine with it.</string>
 	<key>UIAppFonts</key>
 	<array>
+		<string>archivo_medium.ttf</string>
 		<string>archivo_extrabold.ttf</string>
+		<string>archivo_black.ttf</string>
 		<string>bungee.ttf</string>
 		<string>plexmono_400.ttf</string>
 		<string>plexmono_700.ttf</string>

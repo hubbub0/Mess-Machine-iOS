@@ -92,8 +92,5 @@ iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS
 - No real screens yet: the shared engine plays, but the screens and AppState are still Android-only Compose in
   `core/app/`. They arrive when the Android chat moves them to Compose Multiplatform; then host them with
   `ComposeUIViewController` and plug in the iPhone pieces above.
-- The three Archivo font files share one PostScript name (`ArchivoSemiBold-Regular`), so iOS can register only one;
-  the app bundles the ExtraBold. Fix sent as hubbub0/Mess-Machine pull request #24 (names only, glyphs identical).
-  Once merged: move the pin, bundle all three, and use `Archivo-Medium`, `Archivo-ExtraBold`, `Archivo-Black`.
 - Real-phone installs need Tyler's Apple Developer Program membership and signing in CI (TestFlight). Simulator only
   until then. Ask Tyler before touching his Apple account.

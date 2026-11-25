@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import MessMachine
 
 final class MidiParserTests: XCTestCase {
@@ -131,5 +132,13 @@ final class BundleSoundsTests: XCTestCase {
         XCTAssertNil(BundleSounds.read("../Info.plist"))
         XCTAssertNil(BundleSounds.read("loops/../../Info.plist"))
         XCTAssertNil(BundleSounds.read("no-such-sound.flac"))
+    }
+}
+
+final class FontTests: XCTestCase {
+    func testAllThreeArchivoWeightsAndTheOtherFontsLoad() {
+        for name in ["Archivo-Medium", "Archivo-ExtraBold", "Archivo-Black", "Bungee-Regular", "IBMPlexMono-Regular", "IBMPlexMono-Bold", "ShareTechMono-Regular"] {
+            XCTAssertNotNil(UIFont(name: name, size: 12), "\(name) is registered")
+        }
     }
 }

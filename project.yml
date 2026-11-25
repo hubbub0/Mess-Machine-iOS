@@ -27,7 +27,11 @@ targets:
       - path: ios/Audio
         excludes: ["test/**"]
       # shared from the Android repo (core/ submodule): fonts, the sound library index, the start guide
+      - path: core/app/src/main/res/font/archivo_medium.ttf
+        buildPhase: resources
       - path: core/app/src/main/res/font/archivo_extrabold.ttf
+        buildPhase: resources
+      - path: core/app/src/main/res/font/archivo_black.ttf
         buildPhase: resources
       - path: core/app/src/main/res/font/bungee.ttf
         buildPhase: resources
