@@ -22,6 +22,13 @@ jobs:
         with:
           submodules: true
 
+      - name: Use the newest Xcode 26 (App Store uploads need Xcode 26 and the iOS 26 SDK since Apr 28 2026)
+        run: |
+          x=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$x" ]; then echo "No Xcode 26 on this runner:"; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$x"
+          xcodebuild -version
+
       - name: Quick checks (no em dashes in anything Tyler reads)
         run: bash tools/precheck.sh
 

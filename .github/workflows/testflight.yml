@@ -29,6 +29,14 @@ jobs:
             echo "ready=yes" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Use the newest Xcode 26 (required for App Store uploads since Apr 28 2026)
+        if: steps.keys.outputs.ready == 'yes'
+        run: |
+          x=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$x" ] || { echo "No Xcode 26 on this runner"; exit 1; }
+          sudo xcode-select -s "$x"
+          xcodebuild -version
+
       - uses: actions/checkout@v4
         if: steps.keys.outputs.ready == 'yes'
         with:
