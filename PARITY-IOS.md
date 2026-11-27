@@ -7,7 +7,8 @@ chat to merge them. `done`, `part: <what is missing>`, `todo`, or `skip: <why>`.
 
 Since iOS build 18 the screens are shared too (core/ui, the MessMachine framework): AppState and every Compose screen
 run on iPhone, on the iPhone platform pieces in `ios/App/Platform/IosPlatform.swift`. These sections of PARITY.md are
-**part** on iPhone: the same code, seen starting and taking taps on the Simulator, not yet played on a real phone:
+**part** on iPhone: the same code, every tab, sheet and the perform row driven on the Simulator with screenshots
+(iOS build 21), pads and Play measured making sound, not yet played on a real phone:
 
 Layouts and looks, Top bar, Tabs, Play page, Bottom dock and More, Settings tray and Edit tray, FannyPack strips,
 Perform row and side dock, Hold chords and scales and note repeat, Mute and drop, Loop strip, Synth page,
@@ -18,7 +19,7 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | MIDI in | part: CoreMIDI over USB and Bluetooth (Apple's pairing screen behind the Bluetooth key), every source, parser ported line for line (running status, program change and pressure skipped, bend); events reach the stand-in tone. Pad and key mapping waits on the shared screens. |
 | MIDI map | todo |
 | MIDI file out | todo (engine) |
-| Mic onto a pad, Workbench | part: Record (tap start, tap keep) saves mic takes as 16-bit WAV with silent edges cut; Import brings in any audio file iOS reads, mixed to mono; both get `bn:<id>` keys, play through the stand-in engine, and a mess naming them loads. Chops, resampling (Bottle it), saved edits and key and tempo measuring wait on the shared engine. |
+| Mic onto a pad, Workbench | part: the shared Workbench screens on `IosBench`, a port of Android's Workbench.kt: mic takes with Auto sample and Android's trim, imports, chops, saved edits, keys measured by the shared KeyFinder, all registered in the Library (`bn:` and `chop:`). Not yet tried with a real mic. |
 
 ## Android-only pieces
 
@@ -31,13 +32,13 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | In-app update from GitHub releases | todo: TestFlight, needs Tyler's Apple Developer Program membership |
 | Bug notes as GitHub issues | part: same title, body, marker and labels plus `ios`; with a key posts directly, else opens the filled-in page; Replies reads Claude's comments and the issue status back (same status words as Android). Send all as one bundle and the full Notes screen come with the shared screens. |
 | Quick note speech | done: Say it in the note sheet (SFSpeechRecognizer, on the phone when it can), one tap to start, one to stop |
-| Mic for mouth control and takes | part: takes done (see Workbench); mouth control waits on the shared engine's MouthTracker, which plugs into MicIn.onSamples |
+| Mic for mouth control and takes | part: mouth control feeds the shared MouthTracker at 16 kHz from MicIn; takes as above. Not yet tried with a real mic. |
 | Pad buzz | done: UIImpactFeedbackGenerator on every pad hit (rigid for hard MIDI hits) |
 | Lock pins the screen | skip: Guided Access is the user's own setting; no API |
 | 60 Hz or Smooth screen | todo |
 | Back button closes the top panel | skip: no back key; panels close with their X |
 | Light status bar icons on light skins | todo (with skins) |
-| Share sheet, open a mess file, import sounds | part: opens .json messes from Files and "Open in", shares the re-saved mess, imports sounds to the Workbench. WAV, stems and MIDI sharing wait on the engine's bounce. |
+| Share sheet, open a mess file, import sounds | part: sharing (iOS share sheet) and in-app import work through the shared screens; opening a mess from Files, Mail or "Open in" and messmachine:// links wait on core PR #26 (`IosApp`). |
 | Test tags, big test, phone test | part: accessibilityIdentifier uses Android's tags where a control exists (`pad-0`, `bar-play`, `bar-notes`); XCUITest drives the day-one screen with screenshots |
 
 ## Mess format
@@ -51,3 +52,4 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | Pre-106 LFO filter move in padOpts | todo: lands with the shared engine's PadOpts |
 | Missing sounds keep their pads, unknown top-level and per-loop keys carried, `v` above 3 flagged (build 172) | done (the pad's Missing label waits on the shared screens) |
 | Writes `app: "ios"` | done |
+| Sound packs (SE-17) | part: `IosPacks.swift`, a port of AndroidPacks (packs release, zip unpacked with every entry kept inside its folder, jar in Sounds); tested on zips, not yet against a real pack. Failures report once core PR #26 adds @Throws. |
