@@ -27,19 +27,19 @@ targets:
       - path: ios/Audio
         excludes: ["test/**"]
       # shared from the Android repo (core/ submodule): fonts, the sound library index, the start guide
-      - path: core/app/src/main/res/font/archivo_medium.ttf
+      - path: core/ui/src/commonMain/composeResources/font/archivo_medium.ttf
         buildPhase: resources
-      - path: core/app/src/main/res/font/archivo_extrabold.ttf
+      - path: core/ui/src/commonMain/composeResources/font/archivo_extrabold.ttf
         buildPhase: resources
-      - path: core/app/src/main/res/font/archivo_black.ttf
+      - path: core/ui/src/commonMain/composeResources/font/archivo_black.ttf
         buildPhase: resources
-      - path: core/app/src/main/res/font/bungee.ttf
+      - path: core/ui/src/commonMain/composeResources/font/bungee.ttf
         buildPhase: resources
-      - path: core/app/src/main/res/font/plexmono_400.ttf
+      - path: core/ui/src/commonMain/composeResources/font/plexmono_400.ttf
         buildPhase: resources
-      - path: core/app/src/main/res/font/plexmono_700.ttf
+      - path: core/ui/src/commonMain/composeResources/font/plexmono_700.ttf
         buildPhase: resources
-      - path: core/app/src/main/res/font/share_tech_mono.ttf
+      - path: core/ui/src/commonMain/composeResources/font/share_tech_mono.ttf
         buildPhase: resources
       # the Android app's assets as they are: sounds/ (library.json, one-shots, loops/, hits/) and guide.json
       - path: core/app/src/main/assets

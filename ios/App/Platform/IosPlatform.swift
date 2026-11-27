@@ -226,12 +226,12 @@ final class IosAudioOut: NSObject, AudioOut, BlockRenderer {
     }
 
     /// How much of each block's time the engine takes to make it.
-    func load() -> Double {
+    func load_() -> Double {
         statLock.lock(); let ns = renderNs; statLock.unlock()
         let blockNs = 256.0 * 1e9 / Double(max(host.rate, 1))
         return ns / blockNs
     }
-    func loadText() -> String { String(format: "%.0f%%", load() * 100) }
+    func loadText() -> String { String(format: "%.0f%%", load_() * 100) }
     func ms(frames: Int32) -> Double { Double(frames) * 1000 / Double(max(host.rate, 1)) }
     func longBlocksText(max: Int32) -> String { "" }
 }
@@ -494,12 +494,12 @@ final class IosNoteBook: NSObject, NoteBook {
 
 /// Sound packs from the packs release. Not on iPhone yet: no offers, nothing to install.
 final class IosPacks: NSObject, Packs {
-    var installed: NSMutableDictionary = [:]
+    let installed = KotlinMutableDictionary<NSString, KotlinInt>()
     func loadInstalled() {}
     func fetchOffers() -> [PacksOffer] { [] }
     func install(o: PacksOffer) {}
     func installZip(zip: MFile, id: String) {}
-    func remove(id: String) { installed.removeObject(forKey: id) }
+    func remove(id: String) { installed.removeObject(forKey: id as NSString) }
 }
 
 /// Speech to text for a quick note, with this repo's VoiceNote (SFSpeechRecognizer, on the phone where it can).
@@ -518,7 +518,7 @@ final class IosSpeechIn: NSObject, SpeechIn {
 
     func available() -> Bool { true }
 
-    func start() -> Bool {
+    func start_() -> Bool {
         DispatchQueue.main.async {
             self.voice.start { _ = AudioHost.prepareSession() }
             self.timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
@@ -548,7 +548,7 @@ final class IosMouthIn: NSObject, MouthIn {
     private var buf = [Float]()
     private(set) var running = false
 
-    func start() -> Bool {
+    func start_() -> Bool {
         guard !running else { return true }
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
