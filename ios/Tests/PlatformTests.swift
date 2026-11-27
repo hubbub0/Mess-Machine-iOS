@@ -34,8 +34,8 @@ final class MidiParserTests: XCTestCase {
 }
 
 final class NotesTests: XCTestCase {
-    private func note(_ cat: String, _ text: String, topic: String = "", ago: TimeInterval = 0) -> MNote {
-        MNote(id: "abc123", cat: cat, topic: topic, text: text, at: Date().addingTimeInterval(-ago), build: "ios 7", screen: "day one")
+    private func note(_ cat: String, _ text: String, topic: String = "", ago: TimeInterval = 0) -> IosNote {
+        IosNote(id: "abc123", cat: cat, topic: topic, text: text, at: Date().addingTimeInterval(-ago), build: "ios 7", screen: "day one")
     }
 
     func testTitlesMatchAndroid() {
@@ -111,7 +111,7 @@ final class NoteRepliesTests: XCTestCase {
 
     func testNotesSavedBeforeRepliesStillLoad() throws {
         let old = #"[{"id":"a1","cat":"bug","topic":"","text":"x","at":0,"build":"ios 3","screen":"day one","issue":0,"status":""}]"#
-        let n = try JSONDecoder().decode([MNote].self, from: Data(old.utf8))
+        let n = try JSONDecoder().decode([IosNote].self, from: Data(old.utf8))
         XCTAssertEqual(n.first?.id, "a1")
         XCTAssertNil(n.first?.replies)
     }

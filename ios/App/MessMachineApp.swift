@@ -208,7 +208,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func play(_ b: BenchItem) {
+    func play(_ b: BenchSound) {
         if !audio.running { startAudio() }
         let rate = audio.rate
         let bench = bench, tone = tone
@@ -272,7 +272,7 @@ final class AppModel: ObservableObject {
     func sendNote(cat: String, text: String) {
         let (c, topic, words) = NotesBook.parsePrefix(text, cat: cat, topic: "")
         guard !words.isEmpty else { say = "Write something first."; return }
-        let n = MNote(id: NotesBook.newId(), cat: c, topic: topic, text: words, at: Date(), build: "ios \(Self.build)", screen: "day one")
+        let n = IosNote(id: NotesBook.newId(), cat: c, topic: topic, text: words, at: Date(), build: "ios \(Self.build)", screen: "day one")
         notes.add(n)
         notes.send(n, details: noteDetails(cat: c)) { [weak self] msg in self?.say = msg }
     }

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The Specimen skin from core/shared/tokens.json (Tyler plays in Specimen). The full skin set arrives with the
 /// shared Compose screens; this is only for the day-one shell.
-enum C {
+enum Ink {
     static func hex(_ v: UInt32) -> Color {
         Color(.sRGB, red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255,
               opacity: Double((v >> 24) & 0xFF) / 255)
@@ -38,14 +38,14 @@ struct Panel<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title.uppercased())
                 .font(F.heading(18))
-                .foregroundStyle(C.yellow)
-                .shadow(color: C.pink, radius: 0, x: 3, y: 3)
+                .foregroundStyle(Ink.yellow)
+                .shadow(color: Ink.pink, radius: 0, x: 3, y: 3)
             content
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.card)
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(C.empty, lineWidth: 2))
+        .background(Ink.card)
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Ink.empty, lineWidth: 2))
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
@@ -62,11 +62,11 @@ struct Key: View {
             Text(label.uppercased())
                 .font(F.text(13))
                 .tracking(1)
-                .foregroundStyle(lit ? C.ink : C.cream)
+                .foregroundStyle(lit ? Ink.ink : Ink.cream)
                 .padding(.horizontal, 12).padding(.vertical, 10)
                 .frame(minHeight: 44)
-                .background(lit ? C.yellow : C.card2)
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(C.yellow.opacity(lit ? 1 : 0.45), lineWidth: 1.5))
+                .background(lit ? Ink.yellow : Ink.card2)
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Ink.yellow.opacity(lit ? 1 : 0.45), lineWidth: 1.5))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
@@ -82,9 +82,9 @@ struct Readout: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(label).font(F.mono(12)).foregroundStyle(C.dim)
+            Text(label).font(F.mono(12)).foregroundStyle(Ink.dim)
             Spacer(minLength: 8)
-            Text(value).font(F.lcd(14)).foregroundStyle(C.yellow).multilineTextAlignment(.trailing)
+            Text(value).font(F.lcd(14)).foregroundStyle(Ink.yellow).multilineTextAlignment(.trailing)
                 .accessibilityIdentifier(tag ?? "readout-\(label)")
         }
     }

@@ -264,7 +264,7 @@ final class IosBench: NSObject, Bench {
         guard let d = FileManager.default.contents(atPath: indexPath),
               let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return }
         for o in arr {
-            let b = MessMachine.BenchItem(id: o["id"] as? String ?? "", kind: o["kind"] as? String ?? "imp", title: o["title"] as? String ?? "",
+            let b = BenchItem(id: o["id"] as? String ?? "", kind: o["kind"] as? String ?? "imp", title: o["title"] as? String ?? "",
                                           at: (o["at"] as? NSNumber)?.int64Value ?? 0, base: o["base"] as? String ?? "",
                                           st: (o["st"] as? NSNumber)?.doubleValue ?? 0, en: (o["en"] as? NSNumber)?.doubleValue ?? 1,
                                           bpm: (o["bpm"] as? NSNumber)?.doubleValue ?? 0, beats: (o["beats"] as? NSNumber)?.int32Value ?? 0,
@@ -274,7 +274,7 @@ final class IosBench: NSObject, Bench {
     }
 
     private func save() {
-        let arr: [[String: Any]] = items.compactMap { $0 as? MessMachine.BenchItem }.map { b in
+        let arr: [[String: Any]] = items.compactMap { $0 as? BenchItem }.map { b in
             var o: [String: Any] = ["id": b.id, "kind": b.kind, "title": b.title, "at": b.at, "base": b.base, "st": b.st, "en": b.en,
                                     "bpm": b.bpm, "beats": b.beats]
             if let k = b.mkey { o["mkey"] = k }
@@ -284,15 +284,15 @@ final class IosBench: NSObject, Bench {
     }
 
     private func wav(_ id: String) -> String { dir + "/" + id + ".wav" }
-    private var list: [MessMachine.BenchItem] { items.compactMap { $0 as? MessMachine.BenchItem } }
+    private var list: [BenchItem] { items.compactMap { $0 as? BenchItem } }
 
-    func keyOf(b: MessMachine.BenchItem) -> String { "bn:" + b.id }
-    func item(key: String) -> MessMachine.BenchItem? { list.first { keyOf(b: $0) == key } }
+    func keyOf(b: BenchItem) -> String { "bn:" + b.id }
+    func item(key: String) -> BenchItem? { list.first { keyOf(b: $0) == key } }
 
     func addSample(kind: String, title: String, s: Sample, bpm: Double, beats: Int32) -> String {
         let id = Workbench.newId()
-        try? Wav.write(s.data.floats(), channels: 1, rate: Int(s.rate), to: URL(fileURLWithPath: wav(id)))
-        let b = MessMachine.BenchItem(id: id, kind: kind, title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: "", st: 0, en: 1,
+        try? WavFile.write(s.data.floats(), channels: 1, rate: Int(s.rate), to: URL(fileURLWithPath: wav(id)))
+        let b = BenchItem(id: id, kind: kind, title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: "", st: 0, en: 1,
                                       bpm: bpm, beats: beats, mkey: nil)
         items.insert(b, at: 0); save()
         return keyOf(b: b)
@@ -300,7 +300,7 @@ final class IosBench: NSObject, Bench {
 
     func adoptCloud(id: String, kind: String, title: String, from: MFile, bpm: Double, beats: Int32, mkey: String) -> Bool {
         guard (try? FileManager.default.copyItem(atPath: from.path, toPath: wav(id))) != nil || FileManager.default.fileExists(atPath: wav(id)) else { return false }
-        let b = MessMachine.BenchItem(id: id, kind: kind, title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: "", st: 0, en: 1,
+        let b = BenchItem(id: id, kind: kind, title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: "", st: 0, en: 1,
                                       bpm: bpm, beats: beats, mkey: mkey)
         items.insert(b, at: 0); save()
         return true
@@ -308,7 +308,7 @@ final class IosBench: NSObject, Bench {
 
     func addChop(base: String, title: String, st: Double, en: Double) -> String {
         let id = Workbench.newId()
-        let b = MessMachine.BenchItem(id: id, kind: "chop", title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: base, st: st, en: en,
+        let b = BenchItem(id: id, kind: "chop", title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: base, st: st, en: en,
                                       bpm: 0, beats: 0, mkey: nil)
         items.insert(b, at: 0); save()
         return keyOf(b: b)
@@ -395,17 +395,17 @@ final class IosNoteBook: NSObject, NoteBook {
     }
 
     var hasKey: Bool { (Keychain.get("notes-key") ?? "").isEmpty == false }
-    private var list: [MessMachine.MNote] { notes.compactMap { $0 as? MessMachine.MNote } }
+    private var list: [MNote] { notes.compactMap { $0 as? MNote } }
 
-    static func note(from o: [String: Any]) -> MessMachine.MNote {
-        MessMachine.MNote(id: o["id"] as? String ?? "", cat: o["cat"] as? String ?? "bug", topic: o["topic"] as? String ?? "",
+    static func note(from o: [String: Any]) -> MNote {
+        MNote(id: o["id"] as? String ?? "", cat: o["cat"] as? String ?? "bug", topic: o["topic"] as? String ?? "",
                           text: o["text"] as? String ?? "", at: (o["at"] as? NSNumber)?.int64Value ?? 0, build: o["build"] as? String ?? "",
                           screen: o["screen"] as? String ?? "", extra: o["extra"] as? String ?? "", sent: o["sent"] as? Bool ?? false,
                           issue: (o["issue"] as? NSNumber)?.int32Value ?? 0, status: o["status"] as? String ?? "",
                           replies: o["replies"] as? [String] ?? [], ctx: o["ctx"] as? String ?? "", ctxTrail: o["ctxTrail"] as? String ?? "")
     }
 
-    static func dict(_ n: MessMachine.MNote) -> [String: Any] {
+    static func dict(_ n: MNote) -> [String: Any] {
         ["id": n.id, "cat": n.cat, "topic": n.topic, "text": n.text, "at": n.at, "build": n.build, "screen": n.screen, "extra": n.extra,
          "sent": n.sent, "issue": n.issue, "status": n.status, "replies": n.replies, "ctx": n.ctx, "ctxTrail": n.ctxTrail]
     }
@@ -414,21 +414,21 @@ final class IosNoteBook: NSObject, NoteBook {
         if let d = try? JSONSerialization.data(withJSONObject: list.map(Self.dict)) { try? d.write(to: file, options: .atomic) }
     }
 
-    private func with(_ n: MessMachine.MNote, issue: Int32? = nil, status: String? = nil, sent: Bool? = nil, replies: [String]? = nil) -> MessMachine.MNote {
-        MessMachine.MNote(id: n.id, cat: n.cat, topic: n.topic, text: n.text, at: n.at, build: n.build, screen: n.screen, extra: n.extra,
+    private func with(_ n: MNote, issue: Int32? = nil, status: String? = nil, sent: Bool? = nil, replies: [String]? = nil) -> MNote {
+        MNote(id: n.id, cat: n.cat, topic: n.topic, text: n.text, at: n.at, build: n.build, screen: n.screen, extra: n.extra,
                           sent: sent ?? n.sent, issue: issue ?? n.issue, status: status ?? n.status, replies: replies ?? n.replies,
                           ctx: n.ctx, ctxTrail: n.ctxTrail)
     }
 
-    private func replace(_ n: MessMachine.MNote) {
+    private func replace(_ n: MNote) {
         DispatchQueue.main.async {
             if let i = self.list.firstIndex(where: { $0.id == n.id }) { self.notes.replaceObject(at: i, with: n); self.save() }
         }
     }
 
     func trail(what: String) { book.trail(what) }
-    func trailText() -> String { book.body(MNote(id: "", cat: "bug", text: "", at: Date(), build: "", screen: ""), details: "").components(separatedBy: "```\n").dropFirst().first?.components(separatedBy: "\n```").first ?? "" }
-    func add(n: MessMachine.MNote) { notes.insert(n, at: 0); save() }
+    func trailText() -> String { book.body(IosNote(id: "", cat: "bug", text: "", at: Date(), build: "", screen: ""), details: "").components(separatedBy: "```\n").dropFirst().first?.components(separatedBy: "\n```").first ?? "" }
+    func add(n: MNote) { notes.insert(n, at: 0); save() }
     func remove(id: String) { if let i = list.firstIndex(where: { $0.id == id }) { notes.removeObject(at: i); save() } }
 
     func parsePrefix(text: String, cat: String, topic: String) -> KotlinTriple<NSString, NSString, NSString> {
@@ -440,11 +440,11 @@ final class IosNoteBook: NSObject, NoteBook {
     func forgetKey() { Keychain.remove("notes-key") }
 
     /// The Swift note shape Notes.swift already sends (same title, body, marker and labels as Android, plus `ios`).
-    private func swiftNote(_ n: MessMachine.MNote) -> MNote {
-        MNote(id: n.id, cat: n.cat, topic: n.topic, text: n.text, at: Date(timeIntervalSince1970: Double(n.at) / 1000), build: n.build, screen: n.screen)
+    private func swiftNote(_ n: MNote) -> IosNote {
+        IosNote(id: n.id, cat: n.cat, topic: n.topic, text: n.text, at: Date(timeIntervalSince1970: Double(n.at) / 1000), build: n.build, screen: n.screen)
     }
 
-    func send(n: MessMachine.MNote, details: String, done: @escaping (String) -> Void) {
+    func send(n: MNote, details: String, done: @escaping (String) -> Void) {
         let s = swiftNote(n)
         book.add(s)
         book.send(s, details: details + n.extra) { [weak self] msg in
@@ -457,7 +457,7 @@ final class IosNoteBook: NSObject, NoteBook {
         if !hasKey { replace(with(n, status: NoteBookKt.OPENED)) }
     }
 
-    func sendWaiting(details: @escaping (MessMachine.MNote) -> String, done: @escaping (String) -> Void) {
+    func sendWaiting(details: @escaping (MNote) -> String, done: @escaping (String) -> Void) {
         let waiting = list.filter { !$0.sent && $0.issue == 0 }
         guard !waiting.isEmpty else { done("Nothing waiting."); return }
         for n in waiting { send(n: n, details: details(n)) { _ in } }
@@ -465,11 +465,11 @@ final class IosNoteBook: NSObject, NoteBook {
     }
 
     /// Without a key: one GitHub page holding every waiting note.
-    func openBundle(waiting: [MessMachine.MNote], details: String) -> Int32 {
+    func openBundle(waiting: [MNote], details: String) -> Int32 {
         guard !waiting.isEmpty else { return 0 }
         let first = swiftNote(waiting[0])
         let text = waiting.map { "### " + NoteBookKt.catLabel(c: $0.cat) + "\n" + $0.text + "\n<!-- mm-note:\($0.id) -->" }.joined(separator: "\n\n")
-        let bundle = MNote(id: first.id, cat: first.cat, topic: first.topic, text: text, at: first.at, build: first.build, screen: first.screen)
+        let bundle = IosNote(id: first.id, cat: first.cat, topic: first.topic, text: text, at: first.at, build: first.build, screen: first.screen)
         DispatchQueue.main.async { UIApplication.shared.open(self.book.pageURL(bundle, details: details)) }
         for n in waiting { replace(with(n, status: NoteBookKt.OPENED)) }
         return Int32(waiting.count)

@@ -6,7 +6,7 @@ import UIKit
 /// issues labeled `from-app`, the category and `ios`, with the same title and body shape, so Claude triages both
 /// apps' notes the same way. With a key (a GitHub token that can only write issues on that repo) Send posts from
 /// inside the app; without one it opens GitHub's new-issue page, filled in, and you tap Submit there.
-struct MNote: Identifiable, Codable, Equatable {
+struct IosNote: Identifiable, Codable, Equatable {
     var id: String
     var cat: String
     var topic: String = ""
@@ -28,7 +28,7 @@ enum NoteKinds {
 
 final class NotesBook: ObservableObject {
     static let repo = "hubbub0/Mess-Machine"
-    @Published private(set) var notes: [MNote] = []
+    @Published private(set) var notes: [IosNote] = []
     @Published private(set) var lastMessage = ""
     @Published private(set) var checking = false
 
@@ -38,14 +38,14 @@ final class NotesBook: ObservableObject {
 
     init(dir: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]) {
         file = dir.appendingPathComponent("notes.json")
-        if let d = try? Data(contentsOf: file), let n = try? JSONDecoder().decode([MNote].self, from: d) { notes = n }
+        if let d = try? Data(contentsOf: file), let n = try? JSONDecoder().decode([IosNote].self, from: d) { notes = n }
     }
 
     private func save() { if let d = try? JSONEncoder().encode(notes) { try? d.write(to: file, options: .atomic) } }
 
-    func add(_ n: MNote) { notes.insert(n, at: 0); save() }
+    func add(_ n: IosNote) { notes.insert(n, at: 0); save() }
 
-    private func replace(_ n: MNote) {
+    private func replace(_ n: IosNote) {
         if let i = notes.firstIndex(where: { $0.id == n.id }) { notes[i] = n; save() }
     }
 
@@ -84,21 +84,21 @@ final class NotesBook: ObservableObject {
         String(Int64(Date().timeIntervalSince1970 * 1000), radix: 36) + String(Int.random(in: 100...999))
     }
 
-    static func late(_ n: MNote, now: Date = Date()) -> Bool { now.timeIntervalSince(n.at) > 30 * 60 }
+    static func late(_ n: IosNote, now: Date = Date()) -> Bool { now.timeIntervalSince(n.at) > 30 * 60 }
 
     private static func fmt(_ f: String, _ d: Date) -> String {
         let df = DateFormatter(); df.locale = Locale(identifier: "en_US"); df.dateFormat = f
         return df.string(from: d)
     }
 
-    static func title(_ n: MNote, now: Date = Date()) -> String {
+    static func title(_ n: IosNote, now: Date = Date()) -> String {
         let head = n.cat == "discuss" ? "[Discuss: \(n.topic.isEmpty ? "general" : n.topic)] " : "[\(NoteKinds.label(n.cat))] "
         let written = late(n, now: now) ? "(written \(fmt("MMM d", n.at))) " : ""
         let first = String((n.text.components(separatedBy: "\n").first ?? "").prefix(70))
         return head + written + (first.isEmpty ? "(no text)" : first)
     }
 
-    func body(_ n: MNote, details: String, trailLines: Int = 60, now: Date = Date()) -> String {
+    func body(_ n: IosNote, details: String, trailLines: Int = 60, now: Date = Date()) -> String {
         var b = n.text.isEmpty ? "(no text)" : n.text
         if Self.late(n, now: now) {
             b += "\n\n**Written \(Self.fmt("MMM d, h:mm a", n.at)) on build \(n.build), sent \(Self.fmt("MMM d, h:mm a", now)).**"
@@ -115,10 +115,10 @@ final class NotesBook: ObservableObject {
         return b
     }
 
-    static func labels(_ n: MNote) -> [String] { ["from-app", n.cat, "ios"] }
+    static func labels(_ n: IosNote) -> [String] { ["from-app", n.cat, "ios"] }
 
     /// GitHub's new-issue page, filled in, cut to fit a URL the way Android does.
-    func pageURL(_ n: MNote, details: String) -> URL {
+    func pageURL(_ n: IosNote, details: String) -> URL {
         func enc(_ s: String) -> String {
             var ok = CharacterSet.alphanumerics; ok.insert(charactersIn: "-._~")
             return s.addingPercentEncoding(withAllowedCharacters: ok) ?? ""
@@ -134,7 +134,7 @@ final class NotesBook: ObservableObject {
     }
 
     /// Send: post it with the key when there is one, else open the filled-in GitHub page.
-    func send(_ n: MNote, details: String, done: @escaping (String) -> Void = { _ in }) {
+    func send(_ n: IosNote, details: String, done: @escaping (String) -> Void = { _ in }) {
         guard let key = Keychain.get("notes-key"), !key.isEmpty else {
             UIApplication.shared.open(pageURL(n, details: details))
             var m = n; m.status = "opened on GitHub, not seen there yet"; replace(m)
@@ -189,7 +189,7 @@ final class NotesBook: ObservableObject {
         let mine = Set(notes.map(\.id))
         Task {
             var msg: String
-            var updates: [MNote] = []
+            var updates: [IosNote] = []
             do {
                 let issues = try await Self.getJSON("https://api.github.com/repos/\(Self.repo)/issues?labels=from-app,ios&state=all&per_page=100") as? [[String: Any]] ?? []
                 var matched = 0, fresh = 0
