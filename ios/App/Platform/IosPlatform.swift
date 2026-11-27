@@ -32,7 +32,7 @@ final class IosPlatform: NSObject, Platform {
     func audioOut(engine: Engine, rate: Int32, burst: Int32) -> AudioOut { IosAudioOut(engine: engine) }
     func bench(lib: Library) -> Bench { IosBench(dir: filesDir + "/bench") }
     func notes() -> NoteBook { IosNoteBook(dir: filesDir, device: device) }
-    func packs(lib: Library) -> Packs { IosPacks() }
+    func packs(lib: Library) -> Packs { IosPacks(root: filesDir, lib: lib) }
     func speech(heard: @escaping (String) -> Void, done: @escaping (String, String?) -> Void) -> SpeechIn {
         IosSpeechIn(heard: heard, done: done)
     }
@@ -57,9 +57,11 @@ final class IosDevice: NSObject, Device {
 
     /// Files bundled with the app: the Android app's assets folder (sounds/..., guide.json).
     func readAsset(path: String) -> KotlinByteArray {
-        let url = Bundle.main.url(forResource: "assets", withExtension: nil)?.appendingPathComponent(path)
-        let d = url.flatMap { try? Data(contentsOf: $0) } ?? Data()
-        return d.kotlinByteArray()
+        // Kotlin's file reader copies in one go (a Swift loop would cross into Kotlin once per byte); it throws on a
+        // missing file, and a Kotlin throw through Swift ends the app, so check first
+        let full = Bundle.main.bundlePath + "/assets/" + path
+        guard !path.split(separator: "/").contains(".."), FileManager.default.fileExists(atPath: full) else { return KotlinByteArray(size: 0) }
+        return IosFileStore.shared.readBytes(path: full)
     }
 
     var outputRate: KotlinInt? { KotlinInt(int: Int32(AudioHost.prepareSession())) }
@@ -116,7 +118,8 @@ final class IosDevice: NSObject, Device {
         guard let url = URL(string: uri) else { return nil }
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        return (try? Data(contentsOf: url))?.kotlinByteArray()
+        guard url.isFileURL, FileManager.default.isReadableFile(atPath: url.path) else { return nil }
+        return IosFileStore.shared.readBytes(path: url.path)
     }
 
     func displayName(uri: String) -> String { URL(string: uri)?.lastPathComponent.removingPercentEncoding ?? "" }
@@ -187,23 +190,50 @@ final class IosAudioOut: NSObject, AudioOut, BlockRenderer {
     private var clickTimes: [Date] = []
     private var lastClicks = 0
     private var renderNs: Double = 0
+    private var peak: Float = 0
+    private var loudest: Float = 0
     private let statLock = NSLock()
+
+    /// The one sound output (AppState makes it once), for the app's lifecycle and the test meter.
+    static weak var current: IosAudioOut?
 
     init(engine: Engine) {
         self.engine = engine
         super.init()
+        Self.current = self
         NotificationCenter.default.addObserver(forName: .messStopFromLockScreen, object: nil, queue: .main) { [weak self] _ in self?.engine.stop() }
+        // Stopgap until IosApp (core PR #26): nothing in the shared code starts the sound on iPhone, so it starts here,
+        // as Android's MainActivity.onStart does.
+        DispatchQueue.main.async { if UIApplication.shared.applicationState != .background { self.host.start() } }
     }
 
     func render(_ buf: UnsafeMutablePointer<Float>, frames: Int, rate: Int) {
         let t0 = mm_now_ns()
         engine.renderInto(out: buf, frames: Int32(frames))
         let dt = Double(mm_now_ns() - t0)
-        statLock.lock(); renderNs = renderNs == 0 ? dt : renderNs * 0.98 + dt * 0.02; statLock.unlock()
+        var p: Float = 0
+        for i in 0..<(frames * 2) { let v = abs(buf[i]); if v > p { p = v } }
+        statLock.lock()
+        renderNs = renderNs == 0 ? dt : renderNs * 0.98 + dt * 0.02
+        peak = max(p, peak * 0.9)
+        loudest = max(loudest, p)
+        statLock.unlock()
     }
 
+    /// The level now (decaying peak) and the loudest block since the app started, both 0 to 1.
+    func levels() -> (now: Float, loudest: Float) { statLock.lock(); defer { statLock.unlock() }; return (peak, loudest) }
+
     func start() { onMain { self.host.start() } }
-    func stop() { onMain { self.host.stop() } }
+    /// Stopgap until IosApp (core PR #26): AppState stops the sound only when it thinks the app is off screen, and on
+    /// iPhone nothing tells it the app is on screen, so a stop while the app is showing is ignored.
+    func stop() { onMain { if UIApplication.shared.applicationState == .active { return }; self.host.stop() } }
+
+    /// The app came back on screen (Android: onStart).
+    func appShown() { onMain { self.host.start() } }
+    /// The app left the screen (Android: onStop): keep sounding only while the music plays and Settings allows it.
+    func appHidden(backgroundPlay: Bool) {
+        onMain { if !(self.engine.isPlaying() && backgroundPlay) { self.host.stop() } }
+    }
     func restart() { onMain { self.host.stop(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.host.start() } } }
 
     private func onMain(_ f: @escaping () -> Void) { Thread.isMainThread ? f() : DispatchQueue.main.async(execute: f) }
@@ -493,16 +523,6 @@ final class IosNoteBook: NSObject, NoteBook {
 }
 
 // MARK: - packs, speech, mouth, updates
-
-/// Sound packs from the packs release. Not on iPhone yet: no offers, nothing to install.
-final class IosPacks: NSObject, Packs {
-    let installed = KotlinMutableDictionary<NSString, KotlinInt>()
-    func loadInstalled() {}
-    func fetchOffers() -> [PacksOffer] { [] }
-    func install(o: PacksOffer) {}
-    func installZip(zip: MFile, id: String) {}
-    func remove(id: String) { installed.removeObject(forKey: id as NSString) }
-}
 
 /// Speech to text for a quick note, with this repo's VoiceNote (SFSpeechRecognizer, on the phone where it can).
 final class IosSpeechIn: NSObject, SpeechIn {

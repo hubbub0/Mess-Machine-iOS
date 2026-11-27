@@ -15,15 +15,48 @@ struct MessMachineApp: App {
 /// ever made, so there is only ever one sound engine and one Core Audio host.
 struct RootView: View {
     static let dayOne = ProcessInfo.processInfo.arguments.contains("-dayOne")
+    @Environment(\.scenePhase) private var phase
 
     var body: some View {
         #if canImport(MessMachine)
-        if Self.dayOne { DayOneRoot() } else { SharedScreens().ignoresSafeArea() }
+        if Self.dayOne { DayOneRoot() } else {
+            SharedScreens().ignoresSafeArea()
+                .overlay(alignment: .topLeading) { if SoundMeter.on { SoundMeter() } }
+                .onChange(of: phase) { _, p in
+                    // stopgap until IosApp (core PR #26) can take over the AppState's side of this
+                    switch p {
+                    case .active: IosAudioOut.current?.appShown()
+                    case .background:
+                        let bg = SharedScreens.platform.settings.getBoolean(key: "bgPlay", def: true)
+                        IosAudioOut.current?.appHidden(backgroundPlay: bg)
+                    default: break
+                    }
+                }
+        }
         #else
         DayOneRoot()
         #endif
     }
 }
+
+#if canImport(MessMachine)
+/// A small level readout for the UI test (`-soundProbe`): the test cannot hear, so it reads how loud the engine was.
+struct SoundMeter: View {
+    static let on = ProcessInfo.processInfo.arguments.contains("-soundProbe")
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.1)) { _ in
+            let l = IosAudioOut.current?.levels() ?? (now: 0, loudest: 0)
+            Text(String(format: "loudest %.3f", l.loudest))
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.6))
+                .padding(.leading, 4).padding(.top, 50)
+                .accessibilityIdentifier("sound-probe")
+                .allowsHitTesting(false)
+        }
+    }
+}
+#endif
 
 #if canImport(MessMachine)
 struct SharedScreens: UIViewControllerRepresentable {
