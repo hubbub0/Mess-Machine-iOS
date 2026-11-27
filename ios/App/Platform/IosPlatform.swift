@@ -201,10 +201,14 @@ final class IosAudioOut: NSObject, AudioOut, BlockRenderer {
         self.engine = engine
         super.init()
         Self.current = self
+        #if MM_IOS_APP
+        NotificationCenter.default.addObserver(forName: .messStopFromLockScreen, object: nil, queue: .main) { _ in IosApp.shared.stopFromLockScreen() }
+        #else
         NotificationCenter.default.addObserver(forName: .messStopFromLockScreen, object: nil, queue: .main) { [weak self] _ in self?.engine.stop() }
-        // Stopgap until IosApp (core PR #26): nothing in the shared code starts the sound on iPhone, so it starts here,
-        // as Android's MainActivity.onStart does.
+        // Stopgap until the framework has IosApp (core PR #26): nothing in the shared code starts the sound on iPhone,
+        // so it starts here, as Android's MainActivity.onStart does.
         DispatchQueue.main.async { if UIApplication.shared.applicationState != .background { self.host.start() } }
+        #endif
     }
 
     func render(_ buf: UnsafeMutablePointer<Float>, frames: Int, rate: Int) {
@@ -226,7 +230,13 @@ final class IosAudioOut: NSObject, AudioOut, BlockRenderer {
     func start() { onMain { self.host.start() } }
     /// Stopgap until IosApp (core PR #26): AppState stops the sound only when it thinks the app is off screen, and on
     /// iPhone nothing tells it the app is on screen, so a stop while the app is showing is ignored.
-    func stop() { onMain { if UIApplication.shared.applicationState == .active { return }; self.host.stop() } }
+    func stop() {
+        #if MM_IOS_APP
+        onMain { self.host.stop() }
+        #else
+        onMain { if UIApplication.shared.applicationState == .active { return }; self.host.stop() }
+        #endif
+    }
 
     /// The app came back on screen (Android: onStart).
     func appShown() { onMain { self.host.start() } }

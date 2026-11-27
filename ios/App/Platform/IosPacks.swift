@@ -33,9 +33,22 @@ final class IosPacks: NSObject, Packs {
         }
     }
 
+    #if MM_IOS_APP
+    // Packs is @Throws (core PR #26): a failure reaches AppState's message, as on Android
+    func fetchOffers() throws -> [PacksOffer] { try offers() }
+    func install(o: PacksOffer) throws { try download(o) }
+    func installZip(zip: MFile, id: String) throws { try unpack(URL(fileURLWithPath: zip.path), id: id) }
+    #else
     func fetchOffers() -> [PacksOffer] {
         do { return try offers() } catch { lastProblem = "\(error)"; return [] }
     }
+    func install(o: PacksOffer) {
+        do { try download(o) } catch { lastProblem = "\(error)" }
+    }
+    func installZip(zip: MFile, id: String) {
+        do { try unpack(URL(fileURLWithPath: zip.path), id: id) } catch { lastProblem = "\(error)" }
+    }
+    #endif
 
     func offers() throws -> [PacksOffer] {
         let rel = try json(get("https://api.github.com/repos/\(NoteBookKt.REPO)/releases/tags/packs", json: true)) as? [String: Any] ?? [:]
@@ -54,19 +67,11 @@ final class IosPacks: NSObject, Packs {
         }
     }
 
-    func install(o: PacksOffer) {
-        do { try download(o) } catch { lastProblem = "\(error)" }
-    }
-
     func download(_ o: PacksOffer) throws {
         let tmp = root.appendingPathComponent("pack-\(o.id).zip")
         defer { try? FileManager.default.removeItem(at: tmp) }
         try get(o.url, json: false, timeout: 30).write(to: tmp)
         try unpack(tmp, id: o.id)
-    }
-
-    func installZip(zip: MFile, id: String) {
-        do { try unpack(URL(fileURLWithPath: zip.path), id: id) } catch { lastProblem = "\(error)" }
     }
 
     /// Unpack a pack's zip into its own folder and register it. Every entry must stay inside that folder.
@@ -127,9 +132,10 @@ final class IosPacks: NSObject, Packs {
         installed.setObject(KotlinInt(int: Int32((m["version"] as? NSNumber)?.intValue ?? 1)), forKey: id as NSString)
     }
 
-    struct Problem: Error, CustomStringConvertible {
+    struct Problem: LocalizedError, CustomStringConvertible {
         let description: String
         init(_ s: String) { description = s }
+        var errorDescription: String? { description }
     }
 
     private func json(_ d: Data) throws -> Any { try JSONSerialization.jsonObject(with: d) }

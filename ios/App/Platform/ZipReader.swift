@@ -6,7 +6,7 @@ import Foundation
 enum ZipReader {
     struct Entry { let name: String; let isDirectory: Bool; let data: Data }
 
-    enum Problem: Error, CustomStringConvertible {
+    enum Problem: LocalizedError, CustomStringConvertible {
         case notAZip, unsupported(String), damaged(String)
         var description: String {
             switch self {
@@ -15,6 +15,7 @@ enum ZipReader {
             case .damaged(let n): return "\(n) is damaged"
             }
         }
+        var errorDescription: String? { description }
     }
 
     static func entries(_ zip: Data) throws -> [Entry] {

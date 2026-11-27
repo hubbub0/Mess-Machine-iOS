@@ -23,7 +23,15 @@ struct RootView: View {
             SharedScreens().ignoresSafeArea()
                 .overlay(alignment: .topLeading) { if SoundMeter.on { SoundMeter() } }
                 .onChange(of: phase) { _, p in
-                    // stopgap until IosApp (core PR #26) can take over the AppState's side of this
+                    #if MM_IOS_APP
+                    // what Android's MainActivity does in onStart and onStop
+                    switch p {
+                    case .active: IosApp.shared.shown()
+                    case .background: IosApp.shared.hidden()
+                    default: break
+                    }
+                    #else
+                    // stopgap until the framework has IosApp (core PR #26)
                     switch p {
                     case .active: IosAudioOut.current?.appShown()
                     case .background:
@@ -31,6 +39,13 @@ struct RootView: View {
                         IosAudioOut.current?.appHidden(backgroundPlay: bg)
                     default: break
                     }
+                    #endif
+                }
+                // a mess file from Files, Mail or a share sheet, or a messmachine:// invite link
+                .onOpenURL { url in
+                    #if MM_IOS_APP
+                    IosApp.shared.open(url: url.absoluteString)
+                    #endif
                 }
         }
         #else

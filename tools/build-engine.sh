@@ -51,6 +51,13 @@ copy() { # <kotlin target> <xcode platform>
 name=$(copy iosSimulatorArm64 iphonesimulator | tail -1)
 [ "$which_targets" = all ] && copy iosArm64 iphoneos >/dev/null
 
+# a shared framework with IosApp (core PR #26) takes over the app's lifecycle and incoming files from the Swift stopgaps
+conds='"$(inherited)"'
+if grep -q 'swift_name("IosApp")' "build/engine/iphonesimulator/$name.framework/Headers/$name.h" 2>/dev/null; then
+  conds="$conds, \"MM_IOS_APP\""
+  echo "The framework has IosApp: building with MM_IOS_APP"
+fi
+
 cat > engine.yml <<YML
 # Written by tools/build-engine.sh: links the shared Kotlin engine ($name) built from $mod_dir.
 targets:
@@ -58,6 +65,7 @@ targets:
     settings:
       base:
         FRAMEWORK_SEARCH_PATHS: ["\$(inherited)", "\$(PROJECT_DIR)/build/engine/\$(PLATFORM_NAME)"]
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: [$conds]
         OTHER_LDFLAGS: ["\$(inherited)", "-framework", "$name", "-lc++", "-lsqlite3", "-framework", "Metal", "-framework", "MetalKit", "-framework", "CoreText", "-framework", "CoreGraphics", "-framework", "QuartzCore", "-framework", "UIKit"]
   MessMachineTests:
     settings:
