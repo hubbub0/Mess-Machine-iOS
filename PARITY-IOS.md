@@ -5,9 +5,9 @@ chat to merge them. `done`, `part: <what is missing>`, `todo`, or `skip: <why>`.
 
 ## Feature sections
 
-The engine itself is now shared (core/core, built as MessEngine): opening a mess, playing its loop and hitting its
-pads make the same sound as Android. Every row in these sections of PARITY.md is still **todo** on screen: they wait
-for the shared screens, not for code written here:
+Since iOS build 18 the screens are shared too (core/ui, the MessMachine framework): AppState and every Compose screen
+run on iPhone, on the iPhone platform pieces in `ios/App/Platform/IosPlatform.swift`. These sections of PARITY.md are
+**part** on iPhone: the same code, seen starting and taking taps on the Simulator, not yet played on a real phone:
 
 Layouts and looks, Top bar, Tabs, Play page, Bottom dock and More, Settings tray and Edit tray, FannyPack strips,
 Perform row and side dock, Hold chords and scales and note repeat, Mute and drop, Loop strip, Synth page,

@@ -88,10 +88,17 @@ rerun it when the core/ pin moves past an icon change.
 iPhone notes land in `hubbub0/Mess-Machine` issues with the `ios` label. Fix iOS-only bugs here and close them with
 "Fixed in build <run number>: <one line>", following the bug-testing triage rules in `core/CLAUDE.md`.
 
+## The shared screens (since build 18)
+
+The app's root is `MainViewControllerKt.MainViewController(platform:)` from the `MessMachine` framework (core/ui,
+engine exported), built by `tools/build-engine.sh`. `ios/App/Platform/IosPlatform.swift` is the iPhone side of
+AppState's `Platform`, built on the pieces above. App types that clash with the framework were renamed (`IosNote`,
+`BenchSound`, `WavFile`, `Ink`); check new type names against `build/engine/MessMachine.h`. The app's Swift module is
+`MessMachineApp`. The old day one screen stays behind the `-dayOne` launch argument for its UI test.
+
 ## Known gaps (see PARITY-IOS.md)
 
-- No real screens yet: the shared engine plays, but the screens and AppState are still Android-only Compose in
-  `core/app/`. They arrive when the Android chat moves them to Compose Multiplatform; then host them with
-  `ComposeUIViewController` and plug in the iPhone pieces above.
+- Sound packs, the speaker check, opening a mess from Files or a share sheet, and cloud (null until CMP step 8) are not
+  wired on iPhone yet. The UI test only checks the screens start and take taps; nobody has heard them on a phone.
 - Real-phone installs need Tyler's Apple Developer Program membership and signing in CI (TestFlight). Simulator only
   until then. Ask Tyler before touching his Apple account.
