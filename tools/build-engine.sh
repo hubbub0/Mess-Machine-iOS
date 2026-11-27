@@ -14,7 +14,13 @@ if [ "$(uname)" != Darwin ]; then
   echo "The iOS engine builds only on a Mac (Kotlin/Native for iOS). Leaving engine.yml as it is."
   exit 0
 fi
-mod_file=$(grep -l "iosSimulatorArm64" core/*/build.gradle.kts core/*/*/build.gradle.kts 2>/dev/null | head -1 || true)
+# the shared screens and app logic (CMP step 7: core/ui, framework MessMachine, engine exported) win over the engine alone
+mod_file=$(grep -l 'baseName = "MessMachine"' core/*/build.gradle.kts 2>/dev/null | head -1 || true)
+gradle_flag="-Pmm.ios"
+if [ -z "$mod_file" ]; then
+  mod_file=$(grep -l "iosSimulatorArm64" core/*/build.gradle.kts core/*/*/build.gradle.kts 2>/dev/null | head -1 || true)
+  gradle_flag="-Pmm.coreOnly"
+fi
 if [ -z "$mod_file" ]; then
   echo "No shared engine in core/ yet (no Gradle module with iosSimulatorArm64). Building with the stand-in engine."
   exit 0
@@ -26,7 +32,7 @@ echo "Shared engine module: $mod_dir (Gradle $gpath)"
 
 tasks=("$gpath:linkReleaseFrameworkIosSimulatorArm64")
 [ "$which_targets" = all ] && tasks+=("$gpath:linkReleaseFrameworkIosArm64")
-(cd core && ./gradlew --no-daemon -Pmm.coreOnly --stacktrace "${tasks[@]}")
+(cd core && ./gradlew --no-daemon "$gradle_flag" --stacktrace "${tasks[@]}")
 
 copy() { # <kotlin target> <xcode platform>
   local src
@@ -52,7 +58,7 @@ targets:
     settings:
       base:
         FRAMEWORK_SEARCH_PATHS: ["\$(inherited)", "\$(PROJECT_DIR)/build/engine/\$(PLATFORM_NAME)"]
-        OTHER_LDFLAGS: ["\$(inherited)", "-framework", "$name", "-lc++"]
+        OTHER_LDFLAGS: ["\$(inherited)", "-framework", "$name", "-lc++", "-lsqlite3", "-framework", "Metal", "-framework", "MetalKit", "-framework", "CoreText", "-framework", "CoreGraphics", "-framework", "QuartzCore", "-framework", "UIKit"]
   MessMachineTests:
     settings:
       base:
@@ -61,4 +67,14 @@ YML
 # the Swift view of the framework, for whoever wires a new engine call (printed in the CI log, kept in build/)
 hdr="build/engine/iphonesimulator/$name.framework/Headers/$name.h"
 [ -f "$hdr" ] && cp "$hdr" "build/engine/$name.h"
+# Compose resources (icons and fonts the shared screens draw): the app bundle's compose-resources folder, laid out the
+# way Compose's iOS reader looks for them (composeResources/<package of Res>/<drawable|font>/...)
+rm -rf build/compose-resources
+if [ -d "$mod_dir/src/commonMain/composeResources" ]; then
+  pkg=$(sed -n 's/.*packageOfResClass *= *"\([^"]*\)".*/\1/p' "$mod_file" | head -1)
+  [ -n "$pkg" ] || pkg="$(basename "$mod_dir").generated.resources"
+  mkdir -p "build/compose-resources/composeResources/$pkg"
+  cp -R "$mod_dir/src/commonMain/composeResources/." "build/compose-resources/composeResources/$pkg/"
+  echo "Compose resources: $(find build/compose-resources -type f | wc -l | tr -d ' ') files under composeResources/$pkg"
+fi
 echo "Linked the shared engine: $name"

@@ -1,6 +1,6 @@
 import XCTest
 import UIKit
-@testable import MessMachine
+@testable import MessMachineApp
 
 final class MidiParserTests: XCTestCase {
     func testNotesRunningStatusAndVelocityZero() {

@@ -1,9 +1,9 @@
 import Foundation
 
-/// The built-in sounds, bundled as the app's `sounds/` folder (a copy of core/app/src/main/assets/sounds: library.json,
+/// The built-in sounds, bundled inside the app's `assets/` folder (assets/sounds) (a copy of core/app/src/main/assets/sounds: library.json,
 /// the one-shots, loops/ and hits/). This is what the shared Kotlin engine's `SoundFiles.read(path)` reads on iOS.
 enum BundleSounds {
-    static let root: URL? = Bundle.main.url(forResource: "sounds", withExtension: nil)
+    static let root: URL? = Bundle.main.url(forResource: "assets", withExtension: nil)?.appendingPathComponent("sounds")
 
     /// The bytes of a file under sounds/, or nil when there is none. Accepts "loops/x.flac" or "sounds/loops/x.flac";
     /// never reads outside the folder. A path starting with "/" is a full path on the phone (a Workbench sound), as the

@@ -307,7 +307,7 @@ struct SoundLibrary {
         aliases = (o["aliases"] as? [String: String]) ?? [:]
     }
 
-    static let bundled: SoundLibrary = Bundle.main.url(forResource: "library", withExtension: "json", subdirectory: "sounds").flatMap(SoundLibrary.init(url:))
+    static let bundled: SoundLibrary = Bundle.main.url(forResource: "library", withExtension: "json", subdirectory: "assets/sounds").flatMap(SoundLibrary.init(url:))
         ?? SoundLibrary(keys: [], aliases: [:])
 
     /// Direct keys first; an alias never hides a real key. Packs and Workbench come later.

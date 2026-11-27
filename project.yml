@@ -41,15 +41,23 @@ targets:
         buildPhase: resources
       - path: core/app/src/main/res/font/share_tech_mono.ttf
         buildPhase: resources
-      - path: core/app/src/main/assets/sounds
+      # the Android app's assets as they are: sounds/ (library.json, one-shots, loops/, hits/) and guide.json
+      - path: core/app/src/main/assets
         type: folder
         buildPhase: resources
+      # the shared screens' icons and fonts, written by tools/build-engine.sh (absent without the framework)
+      - path: build/compose-resources
+        type: folder
+        buildPhase: resources
+        optional: true
       - path: core/shared/fixtures/example.mess.json
         buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.shotgunstudio.messmachine
         PRODUCT_NAME: MessMachine
+        # the shared framework is also called MessMachine, so the app's own Swift module needs another name
+        PRODUCT_MODULE_NAME: MessMachineApp
         SWIFT_OBJC_BRIDGING_HEADER: ios/App/Bridging-Header.h
         TARGETED_DEVICE_FAMILY: "1,2"
         INFOPLIST_FILE: ios/App/Info.plist

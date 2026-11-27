@@ -1,8 +1,8 @@
 import XCTest
-@testable import MessMachine
+@testable import MessMachineApp
 
-#if canImport(MessEngine)
-import MessEngine
+#if canImport(MessMachine)
+import MessMachine
 
 /// The shared Kotlin engine on iOS: it reads the bundled FLAC sounds, opens a mess and makes real sound.
 final class SharedEngineTests: XCTestCase {

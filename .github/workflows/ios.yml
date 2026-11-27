@@ -56,10 +56,12 @@ jobs:
         run: |
           bash tools/build-engine.sh sim
           # how Swift sees the calls the app uses (for fixing names), and the whole header next to the screenshots
-          if [ -f build/engine/MessEngine.h ]; then
-            mkdir -p shots && cp build/engine/MessEngine.h shots/
-            grep -nE "swift_name\(\"(Engine|Library|Project|SoundFiles|KotlinByteArray|KotlinIntArray)|renderInto|fromJson|build\(p|- \(void\)(play|stop|down|up|setSnapshot)|loadKey|hasKey|loadedKey" build/engine/MessEngine.h | head -80 || true
-          fi
+          for h in build/engine/MessMachine.h build/engine/MessEngine.h; do
+            [ -f "$h" ] || continue
+            mkdir -p shots && cp "$h" shots/
+            grep -nE "swift_name\(\"(Engine|Library|Project|SoundFiles|Platform|Device|AudioOut|Bench|BenchItem|NoteBook|MNote|Packs|PacksOffer|SpeechIn|MouthIn|MouthTracker|AppUpdater|Settings|MainThread|Worker|FileStore|MFile|TokenStore|CloudCache|IosHooks|IosSettings|IosMainThread|IosWorker|IosFileStore|MainViewControllerKt|NoteBookKt|Sample|KotlinPair|KotlinTriple)\"\)" "$h" | head -80 || true
+            break
+          done
 
       - name: Generate the Xcode project
         run: |
@@ -110,7 +112,7 @@ jobs:
           (cd shots && zip -q -r ../test-screens.zip .) || true
           if [ -f test-screens.zip ] && [ "${{ github.event_name }}" != "pull_request" ]; then
             files=(test-screens.zip)
-            for f in shots/*.png shots/MessEngine.h; do [ -f "$f" ] && files+=("$f"); done
+            for f in shots/*.png shots/*.h; do [ -f "$f" ] && files+=("$f"); done
             gh release delete test-screens --yes --cleanup-tag 2>/dev/null || true
             gh release create test-screens "${files[@]}" --prerelease --title "Test screenshots" \
               --notes "Simulator screens from iOS build ${{ github.run_number }} (${GITHUB_SHA::7}). Test outcome: ${{ steps.test.outcome }}." || true

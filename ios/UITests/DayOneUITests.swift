@@ -9,6 +9,7 @@ final class DayOneUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments = ["-dayOne"]
         app.launch()
     }
 

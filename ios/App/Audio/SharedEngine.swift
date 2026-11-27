@@ -7,10 +7,10 @@ struct PadRef: Identifiable, Equatable {
     var id: Int { pad }
 }
 
-#if canImport(MessEngine)
-import MessEngine
+#if canImport(MessMachine)
+import MessMachine
 
-/// The shared Kotlin engine (core/core, built by tools/build-engine.sh as the static MessEngine framework), the same
+/// The shared Kotlin engine (core/core, built by tools/build-engine.sh into the static MessMachine framework), the same
 /// code Android runs. It renders on AudioHost's writer thread straight into the block buffer (`renderInto`, iosMain);
 /// pads, play and stop go through its command queue, so any thread may call them.
 final class SharedEngine: BlockRenderer {

@@ -1,22 +1,57 @@
 import SwiftUI
+#if canImport(MessMachine)
+import MessMachine
+#endif
 
 @main
 struct MessMachineApp: App {
+    var body: some Scene {
+        WindowGroup { RootView().preferredColorScheme(.dark) }
+    }
+}
+
+/// The real Mess Machine screens (shared Compose, core/ui) when this build has the MessMachine framework. The day one
+/// test screen stays for builds without it and for the `-dayOne` launch argument (its UI test). Only one of the two is
+/// ever made, so there is only ever one sound engine and one Core Audio host.
+struct RootView: View {
+    static let dayOne = ProcessInfo.processInfo.arguments.contains("-dayOne")
+
+    var body: some View {
+        #if canImport(MessMachine)
+        if Self.dayOne { DayOneRoot() } else { SharedScreens().ignoresSafeArea() }
+        #else
+        DayOneRoot()
+        #endif
+    }
+}
+
+#if canImport(MessMachine)
+struct SharedScreens: UIViewControllerRepresentable {
+    /// Lives as long as the app: AppState holds on to it.
+    static let platform = IosPlatform()
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        AppHooks.install()
+        return MainViewControllerKt.MainViewController(platform: Self.platform)
+    }
+
+    func updateUIViewController(_ vc: UIViewController, context: Context) {}
+}
+#endif
+
+struct DayOneRoot: View {
     @StateObject private var app = AppModel()
 
-    var body: some Scene {
-        WindowGroup {
-            DayOneView()
-                .environmentObject(app)
-                .environmentObject(app.audio)
-                .environmentObject(app.mic)
-                .environmentObject(app.midi)
-                .environmentObject(app.notes)
-                .environmentObject(app.bench)
-                .environmentObject(app.voice)
-                .preferredColorScheme(.dark)
-                .onOpenURL { app.open($0) }
-        }
+    var body: some View {
+        DayOneView()
+            .environmentObject(app)
+            .environmentObject(app.audio)
+            .environmentObject(app.mic)
+            .environmentObject(app.midi)
+            .environmentObject(app.notes)
+            .environmentObject(app.bench)
+            .environmentObject(app.voice)
+            .onOpenURL { app.open($0) }
     }
 }
 
@@ -28,7 +63,7 @@ final class AppModel: ObservableObject {
     let audio: AudioHost
     /// What makes the sound: the shared Kotlin engine when this build has it, else the stand-in tone.
     let engineName: String
-    #if canImport(MessEngine)
+    #if canImport(MessMachine)
     let shared: SharedEngine?
     #endif
     let mic = MicIn()
@@ -49,7 +84,7 @@ final class AppModel: ObservableObject {
 
     init() {
         let rate = AudioHost.prepareSession()
-        #if canImport(MessEngine)
+        #if canImport(MessMachine)
         let se = try? SharedEngine(rate: rate)
         shared = se
         tone = se?.extra ?? ToneEngine()
@@ -69,7 +104,7 @@ final class AppModel: ObservableObject {
     }
 
     func togglePlay() {
-        #if canImport(MessEngine)
+        #if canImport(MessMachine)
         if let se = shared, mess != nil {
             if loopPlaying { se.stop(); loopPlaying = false; notes.trail("stop"); return }
             if !audio.running { startAudio() }
@@ -90,7 +125,7 @@ final class AppModel: ObservableObject {
         do {
             background.playing(line: mess?.name ?? "Mess Machine") { [weak self] in
                 DispatchQueue.main.async {
-                    #if canImport(MessEngine)
+                    #if canImport(MessMachine)
                     self?.shared?.stop()
                     #endif
                     self?.loopPlaying = false
@@ -102,7 +137,7 @@ final class AppModel: ObservableObject {
 
     /// A pad of the open mess, through the shared engine.
     func hit(pad: Int) {
-        #if canImport(MessEngine)
+        #if canImport(MessMachine)
         guard let se = shared else { return }
         if !audio.running { startAudio() }
         se.hit(pad: pad)
@@ -112,7 +147,7 @@ final class AppModel: ObservableObject {
     }
 
     func hitPad(freq: Double = 220, strong: Bool = false) {
-        #if canImport(MessEngine)
+        #if canImport(MessMachine)
         if shared != nil, let first = pads.first { hit(pad: first.pad); return }
         #endif
         if !audio.running { startAudio() }
@@ -124,7 +159,7 @@ final class AppModel: ObservableObject {
     }
 
     private func midiEvent(_ e: MidiEvent) {
-        #if canImport(MessEngine)
+        #if canImport(MessMachine)
         // notes 36 to 51 hit pads 1 to 16, as on Android
         if shared != nil, case let .down(n, _) = e, (36...51).contains(n) { hit(pad: n - 36); return }
         #endif
@@ -205,7 +240,7 @@ final class AppModel: ObservableObject {
         }
         mess = loaded.mess
         missing = loaded.missing
-        #if canImport(MessEngine)
+        #if canImport(MessMachine)
         if let se = shared {
             if loopPlaying { se.stop(); loopPlaying = false }
             pads = []

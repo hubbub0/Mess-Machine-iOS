@@ -1,5 +1,5 @@
 import XCTest
-@testable import MessMachine
+@testable import MessMachineApp
 
 /// The shared mess fixtures (core/shared/fixtures), checked the same way RoundTrip.java checks them on Android.
 final class MessTests: XCTestCase {

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MessMachine
+@testable import MessMachineApp
 
 final class WorkbenchTests: XCTestCase {
     private var dir: URL!
