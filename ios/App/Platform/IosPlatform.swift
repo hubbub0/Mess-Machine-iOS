@@ -30,7 +30,7 @@ final class IosPlatform: NSObject, Platform {
     }
 
     func audioOut(engine: Engine, rate: Int32, burst: Int32) -> AudioOut { IosAudioOut(engine: engine) }
-    func bench(lib: Library) -> Bench { IosBench(dir: filesDir + "/bench") }
+    func bench(lib: Library) -> Bench { IosBench(dir: filesDir + "/bench", lib: lib) }
     func notes() -> NoteBook { IosNoteBook(dir: filesDir, device: device) }
     func packs(lib: Library) -> Packs { IosPacks(root: filesDir, lib: lib) }
     func speech(heard: @escaping (String) -> Void, done: @escaping (String, String?) -> Void) -> SpeechIn {
@@ -269,85 +269,119 @@ final class IosAudioOut: NSObject, AudioOut, BlockRenderer {
 
 // MARK: - the Workbench
 
-/// Your own sounds as WAVs (Documents/bench), as the Android Workbench keeps them. Mic takes come from MicIn.
+/// Your own sounds (Documents/bench), as Android's Workbench: WAVs plus bench.json, each one registered in the
+/// Library ("bn:<id>", chops "chop:<id>", jar "mine") so it plays on pads and shows in Sounds. Mic takes come from MicIn.
 final class IosBench: NSObject, Bench {
     let dir: String
-    var items: NSMutableArray = []
+    private let lib: Library
+    let items: NSMutableArray = []
+    private let lock = NSRecursiveLock()
     private let mic = MicIn()
     private var take: [Float] = []
     private var takeRate = 48000.0
     private var recording = false
-    private let lock = NSLock()
+    private let takeLock = NSLock()
     private var done: ((Sample?) -> Void)?
     private var trimTake = true
 
-    init(dir: String) {
+    init(dir: String, lib: Library) {
         self.dir = dir
+        self.lib = lib
         super.init()
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         load()
     }
 
     private var indexPath: String { dir + "/bench.json" }
+    private func wav(_ id: String) -> String { dir + "/" + id + ".wav" }
+    private var list: [BenchItem] { lock.lock(); defer { lock.unlock() }; return items.compactMap { $0 as? BenchItem } }
 
     private func load() {
         guard let d = FileManager.default.contents(atPath: indexPath),
               let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return }
         for o in arr {
-            let b = BenchItem(id: o["id"] as? String ?? "", kind: o["kind"] as? String ?? "imp", title: o["title"] as? String ?? "",
-                                          at: (o["at"] as? NSNumber)?.int64Value ?? 0, base: o["base"] as? String ?? "",
-                                          st: (o["st"] as? NSNumber)?.doubleValue ?? 0, en: (o["en"] as? NSNumber)?.doubleValue ?? 1,
-                                          bpm: (o["bpm"] as? NSNumber)?.doubleValue ?? 0, beats: (o["beats"] as? NSNumber)?.int32Value ?? 0,
-                                          mkey: o["mkey"] as? String)
-            if b.kind == "chop" || FileManager.default.fileExists(atPath: wav(b.id)) { items.add(b) }
+            let b = BenchItem(id: o["id"] as? String ?? "", kind: o["kind"] as? String ?? "imp", title: o["title"] as? String ?? "Sound",
+                              at: (o["at"] as? NSNumber)?.int64Value ?? 0, base: o["base"] as? String ?? "",
+                              st: (o["st"] as? NSNumber)?.doubleValue ?? 0, en: (o["en"] as? NSNumber)?.doubleValue ?? 1,
+                              bpm: (o["bpm"] as? NSNumber)?.doubleValue ?? 0, beats: (o["beats"] as? NSNumber)?.int32Value ?? 0,
+                              mkey: o["mkey"] as? String)
+            if b.kind == "chop" || FileManager.default.fileExists(atPath: wav(b.id)) { items.add(b); register(b) }
         }
+    }
+
+    private func group(_ kind: String) -> String {
+        switch kind { case "imp": return "Imports"; case "mic": return "Mic takes"; case "rs": return "Resampled loops"
+        case "take": return "Saved edits"; default: return "Chops" }
+    }
+
+    private func register(_ b: BenchItem) {
+        let file = b.kind == "chop" ? "" : wav(b.id)
+        let snd = Library.Sound(key: keyOf(b: b), title: b.title, cab: "mine", file: file, a: 0, d: 0, group: group(b.kind), album: "")
+        // only a sound that knows its length in beats (a resampled loop) follows the mess's tempo
+        if b.bpm > 0 && b.beats > 0 { snd.bpm = b.bpm; snd.beats = b.beats }
+        snd.mkey = b.mkey ?? ""
+        lib.addUser(s: snd, chopOf: b.kind == "chop" ? b.base : nil)
     }
 
     private func save() {
-        let arr: [[String: Any]] = items.compactMap { $0 as? BenchItem }.map { b in
-            var o: [String: Any] = ["id": b.id, "kind": b.kind, "title": b.title, "at": b.at, "base": b.base, "st": b.st, "en": b.en,
-                                    "bpm": b.bpm, "beats": b.beats]
+        let arr: [[String: Any]] = list.map { b in
+            var o: [String: Any] = ["id": b.id, "kind": b.kind, "title": b.title, "at": b.at, "base": b.base, "st": b.st, "en": b.en]
+            if b.bpm > 0 { o["bpm"] = b.bpm; o["beats"] = b.beats }
             if let k = b.mkey { o["mkey"] = k }
             return o
         }
-        if let d = try? JSONSerialization.data(withJSONObject: arr) { FileManager.default.createFile(atPath: indexPath, contents: d) }
+        if let d = try? JSONSerialization.data(withJSONObject: arr) { try? d.write(to: URL(fileURLWithPath: indexPath), options: .atomic) }
     }
 
-    private func wav(_ id: String) -> String { dir + "/" + id + ".wav" }
-    private var list: [BenchItem] { items.compactMap { $0 as? BenchItem } }
+    private func newId() -> String { String(Int64(Date().timeIntervalSince1970 * 1000), radix: 36) + String(Int.random(in: 100...999)) }
+    private func now() -> Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
 
-    func keyOf(b: BenchItem) -> String { "bn:" + b.id }
+    func keyOf(b: BenchItem) -> String { (b.kind == "chop" ? "chop:" : "bn:") + b.id }
     func item(key: String) -> BenchItem? { list.first { keyOf(b: $0) == key } }
 
+    private func append(_ b: BenchItem) { lock.lock(); items.add(b); register(b); save(); lock.unlock() }
+
+    /// Keep a sound: a WAV in the Workbench jar, its key measured, the tempo it was made at. Off the main thread.
     func addSample(kind: String, title: String, s: Sample, bpm: Double, beats: Int32) -> String {
-        let id = Workbench.newId()
-        try? WavFile.write(s.data.floats(), channels: 1, rate: Int(s.rate), to: URL(fileURLWithPath: wav(id)))
-        let b = BenchItem(id: id, kind: kind, title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: "", st: 0, en: 1,
-                                      bpm: bpm, beats: beats, mkey: nil)
-        items.insert(b, at: 0); save()
-        return keyOf(b: b)
+        let mk = KeyFinder.shared.find(data: s.data, rate: s.rate)
+        let b = BenchItem(id: newId(), kind: kind, title: String(title.prefix(40)), at: now(), base: "", st: 0, en: 1, bpm: bpm, beats: beats, mkey: mk)
+        IosFileStore.shared.writeBytes(path: wav(b.id), b: Wav.shared.writeMono16(d: s.data, rate: s.rate))
+        append(b)
+        let k = keyOf(b: b)
+        let put = Sample(key: k, data: s.data, rate: s.rate)
+        if bpm > 0 && beats > 0 { put.bpm = bpm; put.beats = beats }
+        lib.putSample(key: k, s: put)
+        return k
     }
 
+    /// One of your own sounds down from your account: same key as on your other phone.
     func adoptCloud(id: String, kind: String, title: String, from: MFile, bpm: Double, beats: Int32, mkey: String) -> Bool {
-        guard (try? FileManager.default.copyItem(atPath: from.path, toPath: wav(id))) != nil || FileManager.default.fileExists(atPath: wav(id)) else { return false }
-        let b = BenchItem(id: id, kind: kind, title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: "", st: 0, en: 1,
-                                      bpm: bpm, beats: beats, mkey: mkey)
-        items.insert(b, at: 0); save()
+        if id.isEmpty || item(key: "bn:" + id) != nil { return false }
+        let fm = FileManager.default
+        try? fm.removeItem(atPath: wav(id))
+        guard (try? fm.copyItem(atPath: from.path, toPath: wav(id))) != nil else { return false }
+        let k = ["imp", "mic", "rs", "take"].contains(kind) ? kind : "imp"
+        append(BenchItem(id: id, kind: k, title: String((title.isEmpty ? "Sound" : title).prefix(40)), at: now(), base: "", st: 0, en: 1,
+                         bpm: bpm, beats: beats, mkey: mkey))
         return true
     }
 
     func addChop(base: String, title: String, st: Double, en: Double) -> String {
-        let id = Workbench.newId()
-        let b = BenchItem(id: id, kind: "chop", title: title, at: Int64(Date().timeIntervalSince1970 * 1000), base: base, st: st, en: en,
-                                      bpm: 0, beats: 0, mkey: nil)
-        items.insert(b, at: 0); save()
+        let b = BenchItem(id: newId(), kind: "chop", title: String(title.prefix(40)), at: now(), base: base, st: st, en: en, bpm: 0, beats: 0, mkey: nil)
+        append(b)
         return keyOf(b: b)
     }
 
     func remove(key: String) {
         guard let b = item(key: key) else { return }
-        try? FileManager.default.removeItem(atPath: wav(b.id))
-        items.remove(b); save()
+        lock.lock()
+        items.remove(b)
+        if b.kind != "chop" { try? FileManager.default.removeItem(atPath: wav(b.id)) }
+        lib.removeUser(key: key)
+        // chops of this sound go too
+        for c in list where c.kind == "chop" && c.base == key { items.remove(c); lib.removeUser(key: keyOf(b: c)) }
+        save()
+        lock.unlock()
     }
 
     func count(kind: String) -> Int32 { Int32(list.filter { $0.kind == kind }.count) }
@@ -362,44 +396,99 @@ final class IosBench: NSObject, Bench {
         return Sample(key: "", data: cut.kotlinFloatArray(), rate: Int32(rate))
     }
 
+    // Auto sample (Android's startMic): wait for a sound over the room's hiss, then stop after a third of a second of quiet
+    private var auto = false
+    private var floor: Float = 1
+    private var started = false
+    private var heardFor = 0
+    private var quietFor = 0
+
     func startMic(trim: Bool, auto: Bool, done: @escaping (Sample?) -> Void) {
         guard !recording else { return }
         self.done = done
         trimTake = trim
-        lock.lock(); take.removeAll(); lock.unlock()
+        takeLock.lock()
+        take.removeAll(); self.auto = auto; floor = 1; started = false; heardFor = 0; quietFor = 0
+        takeLock.unlock()
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
         try? session.setActive(true)
-        mic.onSamples = { [weak self] p, n, rate in
-            guard let self else { return }
-            self.lock.lock()
-            self.takeRate = rate
-            self.take.append(contentsOf: UnsafeBufferPointer(start: p, count: n))
-            let full = Double(self.take.count) >= rate * 30
-            self.lock.unlock()
-            if full { DispatchQueue.main.async { self.stopMic() } }
-        }
+        mic.onSamples = { [weak self] p, n, rate in self?.feed(p, n, rate: rate) }
         // AppState calls this on the main thread; MicIn wants the main thread
         recording = Thread.isMainThread ? mic.start() : DispatchQueue.main.sync { mic.start() }
         if !recording { done(nil); self.done = nil }
+    }
+
+    private func feed(_ p: UnsafePointer<Float>, _ n: Int, rate: Double) {
+        guard n > 0 else { return }
+        takeLock.lock()
+        takeRate = rate
+        take.append(contentsOf: UnsafeBufferPointer(start: p, count: n))
+        var stop = Double(take.count) >= rate * 30
+        if auto {
+            var e = 0.0
+            for i in 0..<n { e += Double(p[i]) * Double(p[i]) }
+            let r = Float((e / Double(n)).squareRoot())
+            heardFor += n
+            if !started {
+                // the room's hiss: the quietest stretch so far (the first tenth of a second settles it)
+                floor = min(floor, max(r, 0.0005))
+                if Double(heardFor) > rate / 10 && r > max(floor * 6, 0.02) { started = true }
+                else if Double(take.count) > rate / 2 { take.removeFirst(take.count - Int(rate / 2)) }
+            } else {
+                quietFor = r < max(floor * 2.5, 0.008) ? quietFor + n : 0
+                if Double(quietFor) > rate / 3 { stop = true }
+            }
+        }
+        takeLock.unlock()
+        if stop { DispatchQueue.main.async { self.stopMic() } }
     }
 
     func stopMic() {
         guard recording else { return }
         recording = false
         mic.stop()
-        lock.lock(); let s = take; let r = takeRate; take.removeAll(); lock.unlock()
-        let sample = Sample(key: "", data: s.kotlinFloatArray(), rate: Int32(r))
-        let out = trimTake ? trimSilence(s: sample) : sample
+        takeLock.lock(); let s = take; let r = takeRate; take.removeAll(); takeLock.unlock()
+        let raw = Sample(key: "mic", data: s.kotlinFloatArray(), rate: Int32(r))
+        let out = trimTake ? trimSilence(s: raw) : (s.isEmpty ? nil : raw)
         let d = done; done = nil
         d?(out)
     }
 
     func isRecording() -> Bool { recording }
 
+    /// Cut the quiet off both ends (Auto trim), line for line Android's: 5 ms windows, the room's hiss is the quietest
+    /// tenth, 5 ms kept before the sound and 50 ms after with a short fade.
     func trimSilence(s: Sample) -> Sample? {
-        let t = Workbench.trimSilence(s.data.floats(), rate: Double(s.rate))
-        return t.count > Int(Double(s.rate) * 0.05) ? Sample(key: s.key, data: t.kotlinFloatArray(), rate: s.rate) : nil
+        let d = s.data.floats()
+        if d.isEmpty { return nil }
+        var peak: Float = 0
+        for v in d where abs(v) > peak { peak = abs(v) }
+        if peak < 0.002 { return nil }
+        let rate = Int(s.rate)
+        let w = max(1, rate / 200)
+        let nw = (d.count + w - 1) / w
+        var rms = [Float](repeating: 0, count: nw)
+        for k in 0..<nw {
+            var e = 0.0
+            let a0 = k * w, a1 = min(d.count, a0 + w)
+            for i in a0..<a1 { e += Double(d[i]) * Double(d[i]) }
+            rms[k] = Float((e / Double(max(1, a1 - a0))).squareRoot())
+        }
+        let sorted = rms.sorted()
+        let floor = sorted[min(sorted.count - 1, sorted.count / 10)]
+        let th = max(peak * 0.03, floor * 4, 0.001)
+        var first = 0
+        while first < nw && rms[first] < th { first += 1 }
+        if first >= nw { return nil }
+        var last = nw - 1
+        while last > first && rms[last] < th { last -= 1 }
+        let a = max(0, first * w - rate / 200)
+        let z = min(d.count - 1, (last + 1) * w + rate / 20)
+        var out = Array(d[a...z])
+        let fade = min(out.count, rate / 100)
+        for i in 0..<fade { out[out.count - 1 - i] *= Float(i) / Float(fade) }
+        return Sample(key: "mic", data: out.kotlinFloatArray(), rate: s.rate)
     }
 }
 

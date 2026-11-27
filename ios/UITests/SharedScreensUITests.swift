@@ -20,6 +20,7 @@ final class SharedScreensUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         sleep(4)  // Compose draws its first frame after launch
+        answerSystemAlert()  // a question left up by the last test would block every tap
     }
 
     /// A point in the launch screenshot's pixels (921 wide, 2000 high).
@@ -143,7 +144,11 @@ final class SharedScreensUITests: XCTestCase {
 
         app.terminate()
         launch("sheets-note")
-        tap(78, 1830)  // Note (the bug button)
+        tap(78, 1830)  // Note (the bug button): a quick note listens, so it asks for the mic and speech
+        sleep(2)
+        snap("note-asks")
+        answerSystemAlert()
+        answerSystemAlert()
         sleep(2)
         snap("note")
         stillRunning("note")
