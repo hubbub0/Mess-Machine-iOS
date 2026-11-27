@@ -115,6 +115,9 @@ static void test_threads_realtime(void) {
     pthread_t t; pthread_create(&t, NULL, writer, &a);
     sleep_ns(20000000L);
     float out[2 * 256]; int64_t pos = 0; int ok = 1; int reads = 0;
+    /* Core Audio's IO thread is real time too */
+    int rt = mm_thread_realtime(5333333LL, 1500000LL);
+    printf("     reader real-time schedule: %s\n", rt == 0 ? "granted" : "not granted");
     struct timespec next; clock_gettime(CLOCK_MONOTONIC, &next);
     while (pos < a.total - 256 * 4 && reads < 2000) {
         int64_t before = mm_ring_read_pos(&R);
@@ -130,6 +133,9 @@ static void test_threads_realtime(void) {
         struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
         long wait = (next.tv_sec - now.tv_sec) * 1000000000L + (next.tv_nsec - now.tv_nsec);
         if (wait > 0) sleep_ns(wait);
+        /* a late callback does not catch up with back-to-back reads (Core Audio just runs late), so a slow
+           machine's oversleep cannot drain the ring faster than real time */
+        else next = now;
     }
     mm_ring_mark_dead(&R);
     pthread_join(t, NULL);
