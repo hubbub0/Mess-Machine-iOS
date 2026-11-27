@@ -2,6 +2,7 @@ import AVFoundation
 import Foundation
 import Network
 import UIKit
+import UniformTypeIdentifiers
 
 #if canImport(MessMachine)
 import MessMachine
@@ -348,7 +349,8 @@ final class IosBench: NSObject, Bench {
             self.lock.unlock()
             if full { DispatchQueue.main.async { self.stopMic() } }
         }
-        recording = DispatchQueue.main.sync { mic.start() }
+        // AppState calls this on the main thread; MicIn wants the main thread
+        recording = Thread.isMainThread ? mic.start() : DispatchQueue.main.sync { mic.start() }
         if !recording { done(nil); self.done = nil }
     }
 
