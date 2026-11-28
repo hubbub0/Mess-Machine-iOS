@@ -38,7 +38,7 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | 60 Hz or Smooth screen | todo |
 | Back button closes the top panel | skip: no back key; panels close with their X |
 | Light status bar icons on light skins | todo (with skins) |
-| Share sheet, open a mess file, import sounds | part: sharing (iOS share sheet) and in-app import work through the shared screens; opening a mess from Files, Mail or "Open in" and messmachine:// links wait on core PR #26 (`IosApp`). |
+| Share sheet, open a mess file, import sounds | part: sharing (iOS share sheet), in-app import, opening a mess from Files, Mail or "Open in", and messmachine:// links, all through the shared screens and `IosApp` (iOS build 26). Opening from outside the app is not yet covered by a UI test. |
 | Test tags, big test, phone test | part: accessibilityIdentifier uses Android's tags where a control exists (`pad-0`, `bar-play`, `bar-notes`); XCUITest drives the day-one screen with screenshots |
 
 ## Mess format
@@ -52,4 +52,4 @@ Seq page (Steps and Roll), Perform page, Sheets, Recording, Undo.
 | Pre-106 LFO filter move in padOpts | todo: lands with the shared engine's PadOpts |
 | Missing sounds keep their pads, unknown top-level and per-loop keys carried, `v` above 3 flagged (build 172) | done (the pad's Missing label waits on the shared screens) |
 | Writes `app: "ios"` | done |
-| Sound packs (SE-17) | part: `IosPacks.swift`, a port of AndroidPacks (packs release, zip unpacked with every entry kept inside its folder, jar in Sounds); tested on zips, not yet against a real pack. Failures report once core PR #26 adds @Throws. |
+| Sound packs (SE-17) | part: `IosPacks.swift`, a port of AndroidPacks (packs release, zip unpacked with every entry kept inside its folder, jar in Sounds); tested on zips, not yet against a real pack. Failures reach AppState's message, as on Android (@Throws, iOS build 26). |

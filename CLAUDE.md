@@ -98,17 +98,17 @@ that clash with the framework were renamed (`IosNote`, `BenchSound`, `WavFile`, 
 `build/engine/MessMachine.h`. The app's Swift module is `MessMachineApp`. The old day one screen stays behind the
 `-dayOne` launch argument for its UI test.
 
-- `IosApp` (core PR #26) does what Android's MainActivity does around the AppState: sound on show, save on hide,
-  incoming files and links, the lock screen Stop. `tools/build-engine.sh` turns on the Swift flag `MM_IOS_APP` when
-  the framework has it; without it, `IosAudioOut` starts the sound itself and ignores a stop while on screen, and
-  opening files from outside the app does nothing.
+- `IosApp` (core PR #26, merged; in since pin d0cde66, iOS build 26) does what Android's MainActivity does around the
+  AppState: sound on show, save on hide, incoming files and links, the lock screen Stop. `tools/build-engine.sh` turns
+  on the Swift flag `MM_IOS_APP` when the framework has it. The `#else` branches are the old stopgaps, kept only for a
+  build against an older core.
 - Compose on iPhone puts nothing in the accessibility tree, so `SharedScreensUITests` taps by position (iPhone 17
   screenshot pixels) and checks the app keeps running. `-soundProbe` shows a tiny level meter the test reads.
 - The cloud Mac has no microphone: "No mic on this device" in the note test is expected there.
 
 ## Known gaps (see PARITY-IOS.md)
 
-- The speaker check and cloud (null until CMP step 8) are not wired on iPhone. Opening from Files waits on core PR #26.
+- The speaker check and cloud (null until CMP step 8) are not wired on iPhone.
 - VoiceOver gets nothing from the shared screens (no accessibility tree).
 - Nobody has heard it on a phone: the Simulator tests prove sound reaches the engine output, not the speaker.
 - Real-phone installs need Tyler's Apple Developer Program membership and signing in CI (TestFlight). Simulator only
